@@ -1,7 +1,8 @@
-from wpilib import IterativeRobot, run
+import magicbot
+import wpilib
 
 
-class Jessica(IterativeRobot):
+class Jessica(magicbot.MagicRobot):
 
     # Create motors and stuff here
     def createObjects(self):
@@ -25,4 +26,4 @@ class Jessica(IterativeRobot):
         pass
 
 if __name__ is '__main__':
-    run(Jessica)
+    wpilib.run(Jessica)
