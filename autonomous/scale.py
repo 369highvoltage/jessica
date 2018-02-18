@@ -42,34 +42,34 @@ class Scale():
     
     @state(first=True)
     
+    @state(first=True)
     def start(self):
         self.next(now=True)
     
     @state
     def lift(self):
-        lifter.lift_to("scale")
-        self.next_state_now("turn")
+        lifter.lift_to(self.current_state["position"])
+        self.next(now=True)
     
     @state
-    def turn(self, angle):
-        driver.drive(0.0, angle/(abs(angle) * 2))
-
-        if gyro.getAngle() == angle:
-            self.next_state_now("forward")
-            self.forward_next = "release"
+    def turn(self):
+        driver.drive(self.current_state["linear"], self.current_state["angular"]) # Turn at 0.5 speed.
+        
+        if (self.current_state["angle"]) - 1.0 < gyro.getAngle() < (self.current_state["angle"] + 1.0):
+            self.next()
     
     @state
-    def move(self, displacement):
-        driver.drive(0.5, 0.0)
+    def move(self):
+        driver.drive(self.current_state["linear"], 0.0)
 
-        if driver.get_linear_displacement() >= displacement:
-            self.next_state_now(forward_next)
+        if driver.current_distance() >= displacement:
+            self.next()
 
-    @state
+    @timed_state(duration=0.25, must_finish=True)
     def shoot(self):
         shooter.shoot()
-        self.next_state_now("turn")
-    
+        self.next()
+
     @state
     def finish():
         # Reset states
