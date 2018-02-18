@@ -1,3 +1,4 @@
 pyfrc
 robotpy-ctre
 wpilib
+pynetworktables
