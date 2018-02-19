@@ -26,15 +26,6 @@ class Driver:
     gear_solenoid: DoubleSolenoid
     driver_gyro: ADXRS450_Gyro
 
-    # private values
-    left_val: float
-    right_val: float
-    drive_mode: DriveModes
-    gear_mode: GearMode
-    distance_pid_out: PIDOutput
-    distance_pid: PIDController
-    target_distance_inches: float
-
     # constants
     LOW_GEAR_RATIO = 0.01543
     HIGH_GEAR_RATIO = 0.03516
@@ -57,18 +48,19 @@ class Driver:
         self.distance_reached_cbs = []
 
     def setup(self):
-        self.distance_pid_out = DistancePIOutput()
-        self.distance_pid = PIDController(
-            Kp=self.dist_kP,
-            Ki=self.dist_kI,
-            Kd=self.dist_kD,
-            Kf=self.dist_kF,
-            source=self.get_distance(),
-            output=self.distance_pid_out,
-        )
-        self.distance_pid.setInputRange(-648.0, 648.0)
-        self.distance_pid.setOutputRange(self.MIN_SPEED, self.MAX_SPEED)
-        self.distance_pid.setContinuous()
+        pass
+        # self.distance_pid_out = DistancePIOutput()
+        # self.distance_pid = PIDController(
+        #     Kp=self.dist_kP,
+        #     Ki=self.dist_kI,
+        #     Kd=self.dist_kD,
+        #     Kf=self.dist_kF,
+        #     source=self.get_distance(),
+        #     output=self.distance_pid_out,
+        # )
+        # self.distance_pid.setInputRange(-648.0, 648.0)
+        # self.distance_pid.setOutputRange(self.MIN_SPEED, self.MAX_SPEED)
+        # self.distance_pid.setContinuous()
 
     def set_gear(self, gear: GearMode):
         if gear is GearMode.HIGH:
@@ -114,7 +106,7 @@ class Driver:
 
     @property
     def angular_displacement(self):
-        return self.right_encoder_motor.getSelectedSensorVelocity(0) - self.left_encoder_motor.getSelectedSensorVelocity()
+        return self.right_encoder_motor.getSelectedSensorVelocity(0) - self.left_encoder_motor.getSelectedSensorVelocity(0)
 
     # set drive speeds
     def set_tank(self, left_speed: float, right_speed: float):
@@ -127,7 +119,7 @@ class Driver:
         self.left_val = linear
         self.right_val = angular
 
-    def drive_to_position(self, inches: float, cb: function):
+    def drive_to_position(self, inches: float, cb):
         self.target_distance_inches = inches
         self.distance_reached_cbs += cb
 
@@ -155,8 +147,8 @@ class Driver:
     """
     def on_enable(self):
         self.enabled = True
-        self.reset_drive_sensors()
-        self.reset_gyro()
+        # self.reset_drive_sensors()
+        # self.reset_gyro()
 
     def execute(self):
         if self.target_distance_inches:
@@ -177,10 +169,10 @@ class Driver:
         SmartDashboard.putBoolean('driver/GearMode', self.gear_mode)
         left_label = None
         right_label = None
-        if self.mode is DriveModes.TANK:
+        if self.drive_mode is DriveModes.TANK:
             left_label = 'driver/left_speed'
             right_label = 'driver/right_speed'
-        if self.mode is DriveModes.CURVE:
+        if self.drive_mode is DriveModes.CURVE:
             left_label = 'driver/linear'
             right_label = 'driver/angular'
         SmartDashboard.putNumber(left_label, self.left_val)
