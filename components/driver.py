@@ -136,16 +136,16 @@ class Driver:
             return False
         return self.distance_pid.onTarget()
 
-    def drive_to_target(self):
+    def _drive_to_target(self):
         if not self.distance_pid.isEnabled():
             self.reset_drive_sensors()
             self.distance_pid.setSetpoint(self.target_distance_inches)
             self.distance_pid.enable()
         else:
-            self.drive_train.curvatureDrive(self.distance_pid_out.output, 0.0, False)
+            self.set_curve(self.distance_pid_out.output, 0.0)
             if self.distance_pid.onTarget():
                 self.distance_pid.disable()
-                self.drive_train.stopMotor()
+                self.set_curve(0.0, 0.0)
                 self.target_distance_inches = None
                 for cb in self.distance_reached_cbs:
                     cb()
@@ -160,7 +160,7 @@ class Driver:
 
     def execute(self):
         if self.target_distance_inches:
-            self.drive_to_target()
+            self._drive_to_target()
 
         if self.drive_mode is DriveModes.TANK:
             self.drive_train.tankDrive(self.left_val, self.right_val)
