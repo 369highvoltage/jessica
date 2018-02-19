@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
-from components import Driver, Gyro, Lifter, Shooter
+from components.driver import Driver
+from components.gyro import Gyro
+from components.lifter import Lifter
+from components.shooter import Shooter
 from robotpy_ext.autonomous import state, timed_state
 import wpilib
 
