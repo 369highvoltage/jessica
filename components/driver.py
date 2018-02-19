@@ -45,13 +45,16 @@ class Driver:
     dist_kD = tunable(0.0)
     dist_kF = tunable(0.0)
 
+    distance_reached_cbs: list
+
     def __init__(self):
         self.enabled = False
         self.left_val = 0.0
         self.right_val = 0.0
         self.drive_mode = None
         self.gear_mode = None
-        self.target_distance_inches = 0.0
+        self.target_distance_inches = None
+        self.distance_reached_cbs = []
 
     def setup(self):
         self.distance_pid_out = DistancePIOutput()
@@ -66,8 +69,6 @@ class Driver:
         self.distance_pid.setInputRange(-648.0, 648.0)
         self.distance_pid.setOutputRange(self.MIN_SPEED, self.MAX_SPEED)
         self.distance_pid.setContinuous()
-
-
 
     def set_gear(self, gear: GearMode):
         if gear is GearMode.HIGH:
@@ -126,14 +127,28 @@ class Driver:
         self.left_val = linear
         self.right_val = angular
 
-    def drive_to_position(self, inches: float):
-        self.drive_mode = DriveModes.AUTO_POSITION
+    def drive_to_position(self, inches: float, cb: function):
         self.target_distance_inches = inches
+        self.distance_reached_cbs += cb
 
     def is_at_target_distance(self):
         if not self.distance_pid.isEnabled():
             return False
         return self.distance_pid.onTarget()
+
+    def drive_to_target(self):
+        if not self.distance_pid.isEnabled():
+            self.reset_drive_sensors()
+            self.distance_pid.setSetpoint(self.target_distance_inches)
+            self.distance_pid.enable()
+        else:
+            self.drive_train.curvatureDrive(self.distance_pid_out.output, 0.0, False)
+            if self.distance_pid.onTarget():
+                self.distance_pid.disable()
+                self.drive_train.stopMotor()
+                self.target_distance_inches = None
+                for cb in self.distance_reached_cbs:
+                    cb()
 
     """
     runtime functions
@@ -144,26 +159,16 @@ class Driver:
         self.reset_gyro()
 
     def execute(self):
-        if self.enabled:
-            if self.drive_mode is DriveModes.TANK:
-                self.drive_train.tankDrive(self.left_val, self.right_val)
-            if self.drive_mode is DriveModes.CURVE:
-                if -0.1 < self.left_val < 0.1:
-                    self.drive_train.curvatureDrive(self.left_val, self.right_val, True)
-                else:
-                    self.drive_train.curvatureDrive(self.left_val, self.right_val, False)
-            if self.drive_mode is DriveModes.AUTO_POSITION:
-                if not self.distance_pid.isEnabled():
-                    self.reset_drive_sensors()
-                    self.distance_pid.setSetpoint(self.target_distance_inches)
-                    self.distance_pid.enable()
-                else:
-                    self.drive_train.curvatureDrive(self.distance_pid_out.output, 0, False)
-                    if self.distance_pid.onTarget():
-                        self.distance_pid.disable()
-                        self.drive_mode = None
-            if self.drive_mode is None:
-                self.drive_train.stopMotor()
+        if self.target_distance_inches:
+            self.drive_to_target()
+
+        if self.drive_mode is DriveModes.TANK:
+            self.drive_train.tankDrive(self.left_val, self.right_val)
+        if self.drive_mode is DriveModes.CURVE:
+            if -0.1 < self.left_val < 0.1:
+                self.drive_train.curvatureDrive(self.left_val, self.right_val, True)
+            else:
+                self.drive_train.curvatureDrive(self.left_val, self.right_val, False)
 
 
 
@@ -184,6 +189,10 @@ class Driver:
         SmartDashboard.putNumber('driver/angular_displacement', self.angular_displacement)
         SmartDashboard.putNumber('driver/current_distance', self.current_distance)
         SmartDashboard.putNumber('driver/current_angle', self.current_angle)
+        if self.target_distance_inches:
+            SmartDashboard.putNumber('driver/target_distance_inches', self.target_distance_inches)
+        else:
+            SmartDashboard.putNumber('driver/target_distance_inches', 0.0)
         NetworkTables.flush()
 
 
@@ -191,4 +200,3 @@ class DistancePIOutput(PIDOutput):
 
     def pidWrite(self, output):
         self.output = output
-
