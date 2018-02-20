@@ -31,10 +31,10 @@ class Driver:
     HIGH_GEAR_RATIO = 0.03516
     MAX_SPEED = 1
     MIN_SPEED = -1
-    dist_kP = tunable(0.04)
-    dist_kI = tunable(0.0)
-    dist_kD = tunable(0.0)
-    dist_kF = tunable(0.0)
+    dist_kP = tunable(0.04, doc="driver distance P pid value")
+    dist_kI = tunable(0.0, doc="driver distance I pid value")
+    dist_kD = tunable(0.0, doc="driver distance D pid value")
+    dist_kF = tunable(0.0, doc="driver distance F pid value")
 
     distance_reached_cbs: list
 
@@ -49,18 +49,18 @@ class Driver:
 
     def setup(self):
         pass
-        # self.distance_pid_out = DistancePIOutput()
-        # self.distance_pid = PIDController(
-        #     Kp=self.dist_kP,
-        #     Ki=self.dist_kI,
-        #     Kd=self.dist_kD,
-        #     Kf=self.dist_kF,
-        #     source=self.get_distance(),
-        #     output=self.distance_pid_out,
-        # )
-        # self.distance_pid.setInputRange(-648.0, 648.0)
-        # self.distance_pid.setOutputRange(self.MIN_SPEED, self.MAX_SPEED)
-        # self.distance_pid.setContinuous()
+        self.distance_pid_out = DistancePIOutput()
+        self.distance_pid = PIDController(
+            Kp=self.dist_kP,
+            Ki=self.dist_kI,
+            Kd=self.dist_kD,
+            Kf=self.dist_kF,
+            source=lambda : self.current_distance,
+            output=self.distance_pid_out,
+        )
+        self.distance_pid.setInputRange(-648.0, 648.0)
+        self.distance_pid.setOutputRange(Driver.MIN_SPEED, Driver.MAX_SPEED)
+        self.distance_pid.setContinuous()
 
     def set_gear(self, gear: GearMode):
         if gear is GearMode.HIGH:
@@ -85,9 +85,6 @@ class Driver:
     def reset_drive_sensors(self):
         self.left_encoder_motor.setQuadraturePosition(0)
         self.right_encoder_motor.setQuadraturePosition(0)
-
-    def get_distance(self):
-        return self.current_distance
 
     @property
     def current_distance(self):
@@ -121,7 +118,8 @@ class Driver:
 
     def drive_to_position(self, inches: float, cb):
         self.target_distance_inches = inches
-        self.distance_reached_cbs += cb
+        if cb:
+            self.distance_reached_cbs += cb
 
     def is_at_target_distance(self):
         if not self.distance_pid.isEnabled():
