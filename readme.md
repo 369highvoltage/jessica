@@ -2,5 +2,5 @@
 ## Run Commands
 ### Deploy
 ```commandline
-python robot.py --deploy --skip-tests
+python robot.py deploy --skip-tests --nc --no-version-check
 ```
