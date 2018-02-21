@@ -7,13 +7,15 @@ from wpilib import \
     run, \
     DigitalInput, \
     AnalogPotentiometer, \
-    Talon
+    Talon, \
+    SmartDashboard, \
+    Relay
 from ctre import WPI_TalonSRX
 from wpilib.drive import DifferentialDrive
 from components.driver import Driver, GearMode
-from components.lifter import Lifter
+from components.lifter import Lifter, MovementDir
 from utilities import truncate_float, normalize_range
-from components.gripper import Gripper, GripState
+from components.gripper import Gripper, GripState, GripLiftState
 
 
 
@@ -44,7 +46,7 @@ class Jessica(magicbot.MagicRobot):
         self.elevator_bottom_switch = DigitalInput(9)
 
         self.carriage_motor = WPI_TalonSRX(6)
-        self.carriage_bottom_switch = DigitalInput(0)
+        self.carriage_bottom_switch = DigitalInput(2)
         self.carriage_top_switch = DigitalInput(1)
         self.carriage_pot = AnalogPotentiometer(0)
 
@@ -52,9 +54,12 @@ class Jessica(magicbot.MagicRobot):
         self.claw_left_motor = Talon(0)
         self.claw_right_motor = Talon(1)
         self.claw_open_solenoid = DoubleSolenoid(2, 3)
+        self.claw_up_limit = DigitalInput(0)
+        self.claw_lift_motor = Relay(0)
 
         # controllers
         self.controller = Joystick(0)
+        self.operator = Joystick(1)
         self.el_mode = False
     
     # Init: Called when mode starts; optional 
@@ -67,55 +72,75 @@ class Jessica(magicbot.MagicRobot):
 
     def teleopInit(self):
         self.driver.set_gear(GearMode.LOW)
+        self.curve = True
     
     def teleopPeriodic(self):
-        if self.controller.getRawButtonPressed(1):
-            self.driver.set_gear(GearMode.LOW)
-        if self.controller.getRawButtonPressed(3):
-            self.driver.set_gear(GearMode.HIGH)
-
         left_y = truncate_float(-self.controller.getRawAxis(1))
         right_x = truncate_float(self.controller.getRawAxis(2))
         right_y = truncate_float(-self.controller.getRawAxis(5))
 
-        self.driver.set_curve(left_y, right_x)
-        # self.driver.set_tank(left_y, right_y)
+        # use options to toggle curve and tank drive
+        if self.controller.getRawButtonPressed(10):
+            self.curve = not self.curve
+
+        # use curve drive or tank drive
+        if self.curve:
+            self.driver.set_curve(left_y, right_x)
+        else:
+            self.driver.set_tank(left_y, right_y)
 
         # elevator controls
-        l2 = normalize_range(self.controller.getRawAxis(3), -1, 1, 0, 1)
-        r2 = normalize_range(self.controller.getRawAxis(4), -1, 1, 0, 1)
+        l2 = normalize_range(self.operator.getRawAxis(3), -1, 1, 0, 1)
+        r2 = normalize_range(self.operator.getRawAxis(4), -1, 1, 0, 1)
         b_speed = -l2 + r2
 
-        if self.controller.getRawButtonPressed(2):
-            self.el_mode = not self.el_mode
+        # touch pad toggles gear mode
+        if self.controller.getRawButtonPressed(14):
+            self.driver.toggle_gear()
 
-        if self.el_mode:
-            self.lifter.move_elevator(b_speed)
-            self.lifter.move_carriage(0)
+        # grip elevator motor with l1 and r1
+        if self.controller.getRawButton(5):
+            self.gripper.set_lift_state(GripLiftState.DOWN)
+        elif self.controller.getRawButton(6):
+            self.gripper.set_lift_state(GripLiftState.UP)
         else:
-            self.lifter.move_carriage(b_speed)
-            self.lifter.move_elevator(0)
+            self.gripper.set_lift_state(GripLiftState.STOP)
 
-        if self.controller.getRawButtonPressed(4):
+        # if self.controller.getRawButtonPressed(2):
+        #     self.el_mode = not self.el_mode
+
+        # if self.el_mode:
+        #     self.lifter.move_elevator(b_speed)
+        #     self.lifter.move_carriage(0)
+        # else:
+        #     self.lifter.move_carriage(b_speed)
+        #     self.lifter.move_elevator(0)
+
+        SmartDashboard.putNumber("controller/direction", self.controller.getDirectionDegrees())
+        SmartDashboard.putNumber("controller/pov", self.controller.getPOV())
+
+        # elevator control with up and down on d-pad
+        if self.operator.getPOV() == 0:
+            self.lifter.move(MovementDir.UP)
+        elif self.operator.getPOV() == 180:
+            self.lifter.move(MovementDir.DOWN)
+        else:
+            self.lifter.move(MovementDir.STOP)
+
+        # use triangle to open and close gripper
+        if self.operator.getRawButtonPressed(4):
             self.gripper.toggle_open()
 
-        if self.controller.getRawButton(5):
+        # use square to shoot based on the speed from r2
+        # use x to pull and fixed speed
+        if self.operator.getRawButton(1):
+            self.gripper.set_grip_speed(r2)
             self.gripper.set_grip_state(GripState.PUSH)
-        elif self.controller.getRawButton(6):
+        elif self.operator.getRawButton(2):
+            self.gripper.set_grip_speed(self.gripper.default_speed)
             self.gripper.set_grip_state(GripState.PULL)
         else:
             self.gripper.set_grip_state(GripState.STOP)
-
-        # if self.controller.getRawButton(4):
-        #     self.gripper.set_claw_open_state(GripperOpenState.OPEN)
-        # else:
-        #     self.gripper.set_claw_open_state(GripperOpenState.CLOSED)
-        # # if self.controller.getRawButtonPressed(4):
-        # #     self.t_down = True
-        # #
-        # # if self.controller.getRawButtonReleased(4) and self.t_down:
-        # #     self.gripper.toggle_open()
-        # #     self.t_down = False
 
 
 

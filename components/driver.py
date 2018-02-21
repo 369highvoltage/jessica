@@ -69,6 +69,12 @@ class Driver:
             self.gear_solenoid.set(DoubleSolenoid.Value.kReverse)
             self.gear_mode = GearMode.LOW
 
+    def toggle_gear(self):
+        if self.gear_mode is GearMode.HIGH:
+            self.set_gear(GearMode.LOW)
+        if self.gear_mode is GearMode.LOW:
+            self.set_gear(GearMode.HIGH)
+
     """
     sensors
     """
@@ -88,10 +94,10 @@ class Driver:
     @property
     def current_distance(self):
         average_position = (self.left_encoder_motor.getQuadraturePosition() + self.right_encoder_motor.getQuadraturePosition()) / 2
-        actual_position = None
-        if self.gear_mode is GearMode.LOW:
+        actual_position = 0
+        if self.gear_mode is GearMode.LOW and average_position != 0:
             actual_position = Driver.LOW_GEAR_RATIO / average_position
-        if self.gear_mode is GearMode.HIGH:
+        if self.gear_mode is GearMode.HIGH and average_position != 0:
             actual_position = Driver.HIGH_GEAR_RATIO / average_position
         return actual_position
 
@@ -154,16 +160,20 @@ class Driver:
         if self.drive_mode is DriveModes.TANK:
             self.drive_train.tankDrive(self.left_val, self.right_val)
         if self.drive_mode is DriveModes.CURVE:
-            if -0.1 < self.left_val < 0.1:
-                self.drive_train.curvatureDrive(self.left_val, self.right_val, True)
-            else:
-                self.drive_train.curvatureDrive(self.left_val, self.right_val, False)
+            # if -0.1 < self.left_val < 0.1:
+            #     self.drive_train.curvatureDrive(self.left_val, self.right_val, True)
+            # else:
+            self.drive_train.curvatureDrive(self.left_val, self.right_val, False)
 
 
 
         # debug values
         SmartDashboard.putBoolean('driver/DriveMode', self.drive_mode)
-        SmartDashboard.putBoolean('driver/GearMode', self.gear_mode)
+        if self.gear_mode is GearMode.HIGH:
+            SmartDashboard.putBoolean('driver/GearMode', 'HIGH')
+        if self.gear_mode is GearMode.LOW:
+            SmartDashboard.putBoolean('driver/GearMode', 'LOW')
+
         left_label = None
         right_label = None
         if self.drive_mode is DriveModes.TANK:
