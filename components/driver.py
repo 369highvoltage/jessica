@@ -48,7 +48,6 @@ class Driver:
         self.distance_reached_cbs = []
 
     def setup(self):
-        pass
         self.distance_pid_out = DistancePIOutput()
         self.distance_pid = PIDController(
             Kp=self.dist_kP,

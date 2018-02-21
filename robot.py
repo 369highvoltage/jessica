@@ -6,18 +6,21 @@ from wpilib import \
     Joystick, \
     run, \
     DigitalInput, \
-    AnalogPotentiometer
+    AnalogPotentiometer, \
+    Talon
 from ctre import WPI_TalonSRX
 from wpilib.drive import DifferentialDrive
 from components.driver import Driver, GearMode
 from components.lifter import Lifter
 from utilities import truncate_float, normalize_range
+from components.gripper import Gripper, GripState
 
 
 
 class Jessica(magicbot.MagicRobot):
     driver: Driver
     lifter: Lifter
+    gripper: Gripper
 
     # Create motors and stuff here
     def createObjects(self):
@@ -38,11 +41,17 @@ class Jessica(magicbot.MagicRobot):
 
         # lifter component dependencies
         self.elevator_motor = WPI_TalonSRX(5)
-        self.elevator_bottom_switch = DigitalInput(0)
+        self.elevator_bottom_switch = DigitalInput(9)
 
-        self.lifter_motor = WPI_TalonSRX(6)
-        self.lifter_bottom_switch = DigitalInput(1)
-        self.lifter_pot = AnalogPotentiometer(0)
+        self.carriage_motor = WPI_TalonSRX(6)
+        self.carriage_bottom_switch = DigitalInput(0)
+        self.carriage_top_switch = DigitalInput(1)
+        self.carriage_pot = AnalogPotentiometer(0)
+
+        # gripper component dependencies
+        self.claw_left_motor = Talon(0)
+        self.claw_right_motor = Talon(1)
+        self.claw_open_solenoid = DoubleSolenoid(2, 3)
 
         # controllers
         self.controller = Joystick(0)
@@ -58,7 +67,6 @@ class Jessica(magicbot.MagicRobot):
 
     def teleopInit(self):
         self.driver.set_gear(GearMode.LOW)
-        self.x_down = False
     
     def teleopPeriodic(self):
         if self.controller.getRawButtonPressed(1):
@@ -78,6 +86,9 @@ class Jessica(magicbot.MagicRobot):
         r2 = normalize_range(self.controller.getRawAxis(4), -1, 1, 0, 1)
         b_speed = -l2 + r2
 
+        if self.controller.getRawButtonPressed(2):
+            self.el_mode = not self.el_mode
+
         if self.el_mode:
             self.lifter.move_elevator(b_speed)
             self.lifter.move_carriage(0)
@@ -85,12 +96,26 @@ class Jessica(magicbot.MagicRobot):
             self.lifter.move_carriage(b_speed)
             self.lifter.move_elevator(0)
 
-        if self.controller.getRawButtonPressed(2):
-            self.x_down = True
+        if self.controller.getRawButtonPressed(4):
+            self.gripper.toggle_open()
 
-        if self.controller.getRawButtonReleased(2) and self.x_down:
-            self.el_mode = not self.el_mode
-            self.x_down = False
+        if self.controller.getRawButton(5):
+            self.gripper.set_grip_state(GripState.PUSH)
+        elif self.controller.getRawButton(6):
+            self.gripper.set_grip_state(GripState.PULL)
+        else:
+            self.gripper.set_grip_state(GripState.STOP)
+
+        # if self.controller.getRawButton(4):
+        #     self.gripper.set_claw_open_state(GripperOpenState.OPEN)
+        # else:
+        #     self.gripper.set_claw_open_state(GripperOpenState.CLOSED)
+        # # if self.controller.getRawButtonPressed(4):
+        # #     self.t_down = True
+        # #
+        # # if self.controller.getRawButtonReleased(4) and self.t_down:
+        # #     self.gripper.toggle_open()
+        # #     self.t_down = False
 
 
 
