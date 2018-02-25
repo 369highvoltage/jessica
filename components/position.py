@@ -1,15 +1,16 @@
 class Position:
     # RPM Multipliers
-    ELEVATOR_MULTIPLIER = 535.14/1705.77
+    ELEVATOR_MULTIPLIER = 1635.15/6317.67
     CARRIAGE_MULTIPLIER = 1.0 - ELEVATOR_MULTIPLIER
     
     # Max heights of each stage.
-    ELEVATOR_MAX_HEIGHT = 46
-    CARRIAGE_MAX_HEIGHT = 30
+    ELEVATOR_MAX_HEIGHT = 40
+    CARRIAGE_MAX_HEIGHT = 37
 
     # Conversion factors (counts to inches)
-    ENCODER_CONV_FACTOR = 0.0 # CHANGE THESE VALUES
-    POTENTIOMETER_CONV_FACTOR = 0.0
+    # CHANGE THESE VALUES
+    ELEVATOR_CONV_FACTOR = 0.00134
+    CARRIAGE_CONV_FACTOR = 0.000977
     
     def __init__(self):
         # Heights of various objects in inches.
@@ -25,10 +26,21 @@ class Position:
 
         # Tuples
         self.target_position = self.positions[0]
-        
+
+    @property
+    def target_distance(self):
+        return self.target_position["distance"]
+
+    @property
+    def _current_distance(self) -> float:
+        counts = self.current_distance()
+        carriage_count = counts["elevator"]
+        elevator_count = counts["carriage"]
         # Distance (in inches)
-        self.current_distance = 0
-        self.target_distance = 0
+        return carriage_count * Position.CARRIAGE_CONV_FACTOR + elevator_count * Position.ELEVATOR_CONV_FACTOR
+
+    def current_distance(self) -> dict:
+        raise NotImplementedError
 
     # Private functions.
     """
@@ -48,7 +60,7 @@ class Position:
         index = 0
         for position in self.positions:
             if position_name in position["name"]:
-                return (index, position)
+                return index, position
 
             index += 1
     
@@ -57,14 +69,14 @@ class Position:
     """
     def _get_next_position(self) -> tuple:
         index = min(len(self.positions) - 1, self.index + 1)
-        return (index, self.positions[index])
+        return index, self.positions[index]
     
     """
         Get the previous position. Checks lower bound.
     """
     def _get_prev_position(self) -> tuple:
         index = max(0, self.index - 1)
-        return (index, self.positions[index])
+        return index, self.positions[index]
     
     # Public functions
     """
@@ -86,7 +98,6 @@ class Position:
     """
     def set_position(self, position_name: str) -> dict:
         (self.index, self.target_position) = self._find_position(position_name)
-        self.target_distance = self.target_position["distance"]
         return self.target_position
 
     """
@@ -94,7 +105,6 @@ class Position:
     """
     def up(self) -> dict:
         (self.index, self.target_position) = self._get_next_position()
-        self.target_distance = self.target_position["distance"]
         return self.target_position
 
     """
@@ -102,27 +112,26 @@ class Position:
     """
     def down(self) -> dict:
         (self.index, self.target_position) = self._get_prev_position()
-        self.target_distance = self.target_position["distance"]
         return self.target_position
     
     """
         Poll this function to determine when to stop the routine (Based on raw distances).
     """
     def is_at_target_distance(self) -> bool:
-        return (self.target_distance - 0.1 < self.current_distance < self.target_distance + 0.1)
+        return self.target_distance - 0.1 < self._current_distance < self.target_distance + 0.1
+    #
+    # """
+    #     Poll this function to determine when to stop the routine (Based on named positions).
+    # """
+    # def is_at_target_position(self) -> bool:
+    #     return self.target_distance - 0.1 < self.current_distance < self.target_distance + 0.1
     
-    """
-        Poll this function to determine when to stop the routine (Based on named positions).
-    """
-    def is_at_target_position(self) -> bool:
-        return (self.target_position["distance"] - 0.1 < self.current_distance < self.target_position["distance"] + 0.1)
-    
-    """
-        Poll this function in the execute() method & pass in the raw encoder values.
-    """
-    def update_distances(self, carriage_count: int, elevator_count: int):
-        self.current_distance = carriage_count * POTENTIOMETER_CONV_FACTOR + elevator_count * ENCODER_CONV_FACTOR
-        self._check_position()
+    # """
+    #     Poll this function in the execute() method & pass in the raw encoder values.
+    # """
+    # def update_distances(self, carriage_count: int, elevator_count: int):
+    #     self.current_distance = carriage_count * Position.POTENTIOMETER_CONV_FACTOR + elevator_count * Position.ENCODER_CONV_FACTOR
+    #     self._check_position()
     
     """
         Calculate distances for carriage & elevator based on value.
@@ -134,6 +143,7 @@ class Position:
         elevator = self.target_distance - carriage
 
         return { # Return distances in counts.
-            "carriage": carriage/Position.POTENTIOMETER_CONV_FACTOR,
-            "elevator": elevator/Position.ENCODER_CONV_FACTOR
+            "carriage": carriage/Position.CARRIAGE_CONV_FACTOR,
+            # "carriage": 0,
+            "elevator": elevator/Position.ELEVATOR_CONV_FACTOR
         }

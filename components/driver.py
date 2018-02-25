@@ -88,8 +88,8 @@ class Driver:
 
     # encoder
     def reset_drive_sensors(self):
-        self.left_encoder_motor.setQuadraturePosition(0)
-        self.right_encoder_motor.setQuadraturePosition(0)
+        self.left_encoder_motor.setSelectedSensorPosition(0, 0, 0)
+        self.right_encoder_motor.setSelectedSensorPosition(0, 0, 0)
 
     @property
     def current_distance(self):

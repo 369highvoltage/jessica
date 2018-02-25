@@ -2,3 +2,4 @@ pyfrc
 robotpy-ctre
 wpilib
 pynetworktables
+robotpy-wpilib-utilities

@@ -89,22 +89,22 @@ class Jessica(magicbot.MagicRobot):
         else:
             self.driver.set_tank(left_y, right_y)
 
-        # elevator controls
-        l2 = normalize_range(self.operator.getRawAxis(3), -1, 1, 0, 1)
-        r2 = normalize_range(self.operator.getRawAxis(4), -1, 1, 0, 1)
-        b_speed = -l2 + r2
-
         # touch pad toggles gear mode
         if self.controller.getRawButtonPressed(14):
             self.driver.toggle_gear()
 
-        # grip elevator motor with l1 and r1
-        if self.controller.getRawButton(5):
-            self.gripper.set_lift_state(GripLiftState.DOWN)
-        elif self.controller.getRawButton(6):
-            self.gripper.set_lift_state(GripLiftState.UP)
-        else:
-            self.gripper.set_lift_state(GripLiftState.STOP)
+        # grip elevator motor with l1 and r1
+        # if self.controller.getRawButton(5):
+        #     self.gripper.set_lift_state(GripLiftState.DOWN)
+        # elif self.controller.getRawButton(6):
+        #     self.gripper.set_lift_state(GripLiftState.UP)
+        # else:
+        #     self.gripper.set_lift_state(GripLiftState.STOP)
+
+        # elevator controls
+        l2 = normalize_range(self.controller.getRawAxis(3), -1, 1, 0, 1)
+        r2 = normalize_range(self.controller.getRawAxis(4), -1, 1, 0, 1)
+        b_speed = -l2 + r2
 
         # if self.controller.getRawButtonPressed(2):
         #     self.el_mode = not self.el_mode
@@ -120,27 +120,36 @@ class Jessica(magicbot.MagicRobot):
         SmartDashboard.putNumber("controller/pov", self.controller.getPOV())
 
         # elevator control with up and down on d-pad
-        if self.operator.getPOV() == 0:
+        if self.controller.getPOV() == 0:
             self.lifter.move(MovementDir.UP)
-        elif self.operator.getPOV() == 180:
+        elif self.controller.getPOV() == 180:
             self.lifter.move(MovementDir.DOWN)
         else:
             self.lifter.move(MovementDir.STOP)
 
         # use triangle to open and close gripper
-        if self.operator.getRawButtonPressed(4):
+        if self.controller.getRawButtonPressed(4):
             self.gripper.toggle_open()
 
         # use square to shoot based on the speed from r2
         # use x to pull and fixed speed
-        if self.operator.getRawButton(1):
+        if self.controller.getRawButton(1):
             self.gripper.set_grip_speed(r2)
             self.gripper.set_grip_state(GripState.PUSH)
-        elif self.operator.getRawButton(2):
+        elif self.controller.getRawButton(2):
             self.gripper.set_grip_speed(self.gripper.default_speed)
             self.gripper.set_grip_state(GripState.PULL)
         else:
             self.gripper.set_grip_state(GripState.STOP)
+
+        if self.controller.getRawButtonPressed(3):
+            self.lifter.manual_control = not self.lifter.manual_control
+
+        if self.controller.getRawButtonPressed(5):
+            self.lifter.down()
+        if self.controller.getRawButtonPressed(6):
+            self.lifter.up()
+
 
 
 
