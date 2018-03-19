@@ -1,4 +1,4 @@
-from wpilib import DigitalInput, AnalogPotentiometer, SmartDashboard
+from wpilib import DigitalInput, AnalogPotentiometer, SmartDashboard, AnalogInput
 from ctre import WPI_TalonSRX, NeutralMode, FeedbackDevice, ControlMode
 from enum import Enum, auto
 from components.position import Position
@@ -20,7 +20,7 @@ class Lifter(Position):
     carriage_motor: WPI_TalonSRX
     carriage_bottom_switch: DigitalInput
     carriage_top_switch: DigitalInput
-    carriage_pot: AnalogPotentiometer
+    carriage_encoder: AnalogInput
 
     el_down = -1
     el_up = 1
@@ -75,7 +75,8 @@ class Lifter(Position):
         self.elevator_motor.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, 0, Lifter.TIMEOUT_MS)
         self.elevator_motor.setSensorPhase(True)
 
-        self.elevator_motor.setInverted(False)
+        self.elevator_motor.setInverted(True)
+        self.carriage_motor.setInverted(True)
 
         self.elevator_motor.configNominalOutputForward(Lifter.ELEVATOR_ZERO, Lifter.TIMEOUT_MS)
         self.elevator_motor.configNominalOutputReverse(Lifter.ELEVATOR_ZERO, Lifter.TIMEOUT_MS)
@@ -96,11 +97,13 @@ class Lifter(Position):
             self.elevator_motor.set(speed + Lifter.ELEVATOR_ZERO)
 
     def _limit_carriage(self, speed):
-        if (self.carriage_bottom_switch.get() and speed < 0) \
-                or (self.carriage_top_switch.get() and speed > 0):
+        # if (self.carriage_bottom_switch.get() and speed < 0) \
+        #         or (self.carriage_top_switch.get() and speed > 0):
+        if self.carriage_top_switch.get() and speed > 0:
             self.carriage_motor.set(Lifter.CARRIAGE_ZERO)
         else:
-            self.carriage_motor.set(speed + Lifter.CARRIAGE_ZERO)
+            s = speed + Lifter.CARRIAGE_ZERO
+            self.carriage_motor.set(s * 0.75)
 
     def execute(self):
         if self.manual_control:
@@ -111,10 +114,10 @@ class Lifter(Position):
                 self._limit_elevator(0)
                 self._limit_carriage(0)
             if self.direction is MovementDir.UP:
-                self._limit_elevator(self.speed)
+                # self._limit_elevator(self.speed)
                 self._limit_carriage(self.speed)
             if self.direction is MovementDir.DOWN:
-                self._limit_elevator(-self.speed)
+                # self._limit_elevator(-self.speed)
                 self._limit_carriage(-self.speed)
         else:
             if self.is_reset:
@@ -128,13 +131,13 @@ class Lifter(Position):
         SmartDashboard.putBoolean('lifter/carriage_top_switch', self.carriage_top_switch.get())
         SmartDashboard.putNumber('lifter/elevator_motor_speed', self.elevator_motor_speed)
         SmartDashboard.putNumber('lifter/carriage_motor_speed', self.carriage_motor_speed)
-        SmartDashboard.putNumber('lifter/elevator_encoder', self.elevator_motor.getQuadraturePosition())
-        SmartDashboard.putNumber('lifter/carriage_potentiometer', self.carriage_pot.get())
+        SmartDashboard.putNumber('lifter/elevator_encoder', self.elevator_motor.getSelectedSensorPosition(0))
+        SmartDashboard.putNumber('lifter/carriage_encoder', self.carriage_encoder.getValue())
 
     def current_distance(self) -> dict:
         return {
-            "encoder": self.elevator_motor.getSelectedSensorPosition(),
-            "carriage": 0
+            "elevator": self.elevator_motor.getSelectedSensorPosition(0),
+            "carriage": self.carriage_motor.getSelectedSensorPosition(0)
         }
 
     @property

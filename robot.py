@@ -9,7 +9,9 @@ from wpilib import \
     AnalogPotentiometer, \
     Talon, \
     SmartDashboard, \
-    Relay
+    Relay, \
+    Compressor, \
+    AnalogInput
 from ctre import WPI_TalonSRX
 from wpilib.drive import DifferentialDrive
 from components.driver import Driver, GearMode
@@ -27,17 +29,19 @@ class Jessica(magicbot.MagicRobot):
     # Create motors and stuff here
     def createObjects(self):
         # driver component setup
-        left_front = WPI_TalonSRX(4)
-        left_rear = WPI_TalonSRX(3)
-        right_front = WPI_TalonSRX(2)
-        right_rear = WPI_TalonSRX(1)
+        left_front = WPI_TalonSRX(2)
+        left_rear = WPI_TalonSRX(1)
+        right_front = WPI_TalonSRX(4)
+        right_rear = WPI_TalonSRX(3)
         left = SpeedControllerGroup(left_front, left_rear)
         right = SpeedControllerGroup(right_front, right_rear)
 
         # driver component dependencies
         self.drive_train = DifferentialDrive(left, right)
-        self.left_encoder_motor = left_front
-        self.right_encoder_motor = right_rear
+        # self.left_encoder_motor = left_front
+        # self.right_encoder_motor = right_rear
+        self.left_encoder_motor = left_rear
+        self.right_encoder_motor = right_front
         self.gear_solenoid = DoubleSolenoid(0, 1)
         self.driver_gyro = ADXRS450_Gyro()
 
@@ -46,8 +50,9 @@ class Jessica(magicbot.MagicRobot):
         self.elevator_bottom_switch = DigitalInput(9)
 
         self.carriage_motor = WPI_TalonSRX(6)
-        self.carriage_bottom_switch = DigitalInput(2)
-        self.carriage_top_switch = DigitalInput(1)
+        self.carriage_bottom_switch = DigitalInput(1) # was 2
+        self.carriage_top_switch = DigitalInput(2) # was 1
+        self.carriage_encoder = AnalogInput(1)
         self.carriage_pot = AnalogPotentiometer(0)
 
         # gripper component dependencies
@@ -61,6 +66,8 @@ class Jessica(magicbot.MagicRobot):
         self.controller = Joystick(0)
         self.operator = Joystick(1)
         self.el_mode = False
+
+        # self.compressor = Compressor(module=0)
     
     # Init: Called when mode starts; optional 
     # Periodic: Called on each iteration of the control loop
@@ -73,6 +80,7 @@ class Jessica(magicbot.MagicRobot):
     def teleopInit(self):
         self.driver.set_gear(GearMode.LOW)
         self.curve = True
+        # self.compressor.stop()
     
     def teleopPeriodic(self):
         left_y = truncate_float(-self.controller.getRawAxis(1))
@@ -122,8 +130,10 @@ class Jessica(magicbot.MagicRobot):
         # elevator control with up and down on d-pad
         if self.controller.getPOV() == 0:
             self.lifter.move(MovementDir.UP)
+            # self.lifter.up()
         elif self.controller.getPOV() == 180:
             self.lifter.move(MovementDir.DOWN)
+            # self.lifter.down()
         else:
             self.lifter.move(MovementDir.STOP)
 
@@ -145,12 +155,12 @@ class Jessica(magicbot.MagicRobot):
         if self.controller.getRawButtonPressed(3):
             self.lifter.manual_control = not self.lifter.manual_control
 
-        if self.controller.getRawButtonPressed(5):
-            self.lifter.down()
+        # if self.controller.getRawButtonPressed(5):
+        #     self.lifter.down()
+        # if self.controller.getRawButtonPressed(6):
+        #     self.lifter.up()
         if self.controller.getRawButtonPressed(6):
-            self.lifter.up()
-
-
+            self.driver.reset_drive_sensors()
 
 
 if __name__ == '__main__':

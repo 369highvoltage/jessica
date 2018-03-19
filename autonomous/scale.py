@@ -5,8 +5,9 @@ class Scale(Auto):
     DEFAULT = True
     MODE_NAME = "Scale"
 
-    def __init__(self, side):
-        super.__init__()
+    def __init__(self):
+        # super().__init__()
+        side = "L"
         if side == "L":
             self.angle = 90
         elif side == "R":
@@ -14,7 +15,7 @@ class Scale(Auto):
 
         self.states = [
             # { "state": "lift", "position": "switch" },
-            { "state": "move", "linear": 0.5, "displacement": 10000 },
+            { "state": "move", "linear": 0.25, "displacement": 1500 },
             # { "state": "lift", "position": "scale" },
             { "state": "turn", "linear": 0.0, "angular": self.angle/(abs(self.angle) * 2), "angle": self.angle },
             # { "state": "shoot" },
@@ -22,3 +23,4 @@ class Scale(Auto):
             { "state": "finish" }
         ]
 
+        super().__init__()

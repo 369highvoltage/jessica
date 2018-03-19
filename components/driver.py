@@ -27,8 +27,12 @@ class Driver:
     driver_gyro: ADXRS450_Gyro
 
     # constants
-    LOW_GEAR_RATIO = 0.01543
-    HIGH_GEAR_RATIO = 0.03516
+    LINEAR_SAMPLE_RATE = 32
+    ANGULAR_SAMPLE_RATE = 4
+    # LOW_GEAR_RATIO = 0.01543
+    # HIGH_GEAR_RATIO = 0.03516
+    LOW_GEAR_RATIO = 0.0102
+    HIGH_GEAR_RATIO = 0.0221
     MAX_SPEED = 1
     MIN_SPEED = -1
     dist_kP = tunable(0.04, doc="driver distance P pid value")
@@ -46,6 +50,8 @@ class Driver:
         self.gear_mode = None
         self.target_distance_inches = None
         self.distance_reached_cbs = []
+        self.curve_moving_speed = {"linear": [0] * Driver.LINEAR_SAMPLE_RATE, "angular": [0] * Driver.ANGULAR_SAMPLE_RATE}
+        self.tank_moving_speed = {"left": [0] * Driver.LINEAR_SAMPLE_RATE, "right": [0] * Driver.LINEAR_SAMPLE_RATE}
 
     def setup(self):
         self.distance_pid_out = DistancePIOutput()
@@ -60,6 +66,8 @@ class Driver:
         self.distance_pid.setInputRange(-648.0, 648.0)
         self.distance_pid.setOutputRange(Driver.MIN_SPEED, Driver.MAX_SPEED)
         self.distance_pid.setContinuous()
+        # self.right_encoder_motor.setSensorPhase(True)
+        self.left_encoder_motor.setSensorPhase(True)
 
     def set_gear(self, gear: GearMode):
         if gear is GearMode.HIGH:
@@ -93,12 +101,12 @@ class Driver:
 
     @property
     def current_distance(self):
-        average_position = (self.left_encoder_motor.getQuadraturePosition() + self.right_encoder_motor.getQuadraturePosition()) / 2
+        average_position = (self.left_encoder_motor.getSelectedSensorPosition(0) + self.right_encoder_motor.getSelectedSensorPosition(0)) / 2
         actual_position = 0
-        if self.gear_mode is GearMode.LOW and average_position != 0:
-            actual_position = Driver.LOW_GEAR_RATIO / average_position
-        if self.gear_mode is GearMode.HIGH and average_position != 0:
-            actual_position = Driver.HIGH_GEAR_RATIO / average_position
+        if self.gear_mode is GearMode.LOW:
+            actual_position = Driver.LOW_GEAR_RATIO * average_position
+        if self.gear_mode is GearMode.HIGH:
+            actual_position = Driver.HIGH_GEAR_RATIO * average_position
         return actual_position
 
     # calculations based on velocity
@@ -110,14 +118,17 @@ class Driver:
     def angular_displacement(self):
         return self.right_encoder_motor.getSelectedSensorVelocity(0) - self.left_encoder_motor.getSelectedSensorVelocity(0)
 
+    def set_drive_mode(self, mode: DriveModes):
+        self.drive_mode = mode
+
     # set drive speeds
     def set_tank(self, left_speed: float, right_speed: float):
-        self.drive_mode= DriveModes.TANK
+        self.set_drive_mode(DriveModes.TANK)
         self.left_val = left_speed
         self.right_val = right_speed
 
     def set_curve(self, linear: float, angular: float):
-        self.drive_mode = DriveModes.CURVE
+        self.set_drive_mode(DriveModes.CURVE)
         self.left_val = linear
         self.right_val = angular
 
@@ -153,37 +164,77 @@ class Driver:
         # self.reset_drive_sensors()
         # self.reset_gyro()
 
+    def _get_moving_average(self, stick1: float, stick2: float) -> (float, float):
+        if self.drive_mode is DriveModes.TANK:
+            self.tank_moving_speed["left"].append(stick1)
+            self.tank_moving_speed["right"].append(stick2)
+            if len(self.tank_moving_speed["left"]) > Driver.LINEAR_SAMPLE_RATE:
+                self.tank_moving_speed["left"].pop(0)
+            if len(self.tank_moving_speed["right"]) > Driver.LINEAR_SAMPLE_RATE:
+                self.tank_moving_speed["right"].pop(0)
+            left_speed = sum([x/Driver.LINEAR_SAMPLE_RATE for x in self.tank_moving_speed["left"]])
+            right_speed = sum([x/Driver.LINEAR_SAMPLE_RATE for x in self.tank_moving_speed["right"]])
+
+            return left_speed, right_speed
+
+        if self.drive_mode is DriveModes.CURVE:
+            self.curve_moving_speed["linear"].append(stick1)
+            self.curve_moving_speed["angular"].append(stick2)
+            if len(self.curve_moving_speed["linear"]) > Driver.LINEAR_SAMPLE_RATE:
+                self.curve_moving_speed["linear"].pop(0)
+            if len(self.curve_moving_speed["angular"]) > Driver.ANGULAR_SAMPLE_RATE:
+                self.curve_moving_speed["angular"].pop(0)
+            linear = sum([x / Driver.LINEAR_SAMPLE_RATE for x in self.curve_moving_speed["linear"]])
+            angular = sum([x / Driver.ANGULAR_SAMPLE_RATE for x in self.curve_moving_speed["angular"]])
+
+            return linear, angular
+
     def execute(self):
-        if self.target_distance_inches:
-            self._drive_to_target()
+        # if self.target_distance_inches:
+        #     self._drive_to_target()
 
         if self.drive_mode is DriveModes.TANK:
-            self.drive_train.tankDrive(self.left_val, self.right_val)
+            left, right = self._get_moving_average(self.left_val, self.right_val)
+            self.drive_train.tankDrive(left, right)
+            SmartDashboard.putNumber("driver/left_speed", left)
+            SmartDashboard.putNumber("driver/right_speed", right)
         if self.drive_mode is DriveModes.CURVE:
-            # if -0.1 < self.left_val < 0.1:
-            #     self.drive_train.curvatureDrive(self.left_val, self.right_val, True)
-            # else:
-            self.drive_train.curvatureDrive(self.left_val, self.right_val, False)
+            linear, angular = self._get_moving_average(self.left_val, self.right_val)
+            if -0.1 < linear < 0.1:
+                self.drive_train.curvatureDrive(linear, angular, True)
+            else:
+                self.drive_train.curvatureDrive(linear, angular, False)
+            SmartDashboard.putNumber("driver/linear", linear)
+            SmartDashboard.putNumber("driver/angular", angular)
 
 
 
         # debug values
         SmartDashboard.putBoolean('driver/DriveMode', self.drive_mode)
         if self.gear_mode is GearMode.HIGH:
-            SmartDashboard.putBoolean('driver/GearMode', 'HIGH')
+            SmartDashboard.putString('driver/GearMode', 'HIGH')
         if self.gear_mode is GearMode.LOW:
-            SmartDashboard.putBoolean('driver/GearMode', 'LOW')
+            SmartDashboard.putString('driver/GearMode', 'LOW')
 
-        left_label = None
-        right_label = None
-        if self.drive_mode is DriveModes.TANK:
-            left_label = 'driver/left_speed'
-            right_label = 'driver/right_speed'
-        if self.drive_mode is DriveModes.CURVE:
-            left_label = 'driver/linear'
-            right_label = 'driver/angular'
-        SmartDashboard.putNumber(left_label, self.left_val)
-        SmartDashboard.putNumber(right_label, self.right_val)
+        SmartDashboard.putNumber("driver/raw_left_speed", self.left_val)
+        SmartDashboard.putNumber("driver/raw_right_speed", self.right_val)
+        #
+        # left_label = None
+        # right_label = None
+        # if self.drive_mode is DriveModes.TANK:
+        #     left_label = 'driver/left_speed'
+        #     right_label = 'driver/right_speed'
+        # if self.drive_mode is DriveModes.CURVE:
+        #     left_label = 'driver/linear'
+        #     right_label = 'driver/angular'
+        #SmartDashboard.putNumber(left_label, self.left_val)
+        #SmartDashboard.putNumber(right_label, self.right_val)
+        SmartDashboard.putNumber('driver/quad_left_encoder_motor',
+                                 self.left_encoder_motor.getQuadraturePosition())
+        SmartDashboard.putNumber('driver/quad_right_encoder_motor',
+                                 self.right_encoder_motor.getQuadraturePosition())
+        SmartDashboard.putNumber('driver/selected_left_encoder_motor', self.left_encoder_motor.getSelectedSensorPosition(0))
+        SmartDashboard.putNumber('driver/selected_right_encoder_motor', self.right_encoder_motor.getSelectedSensorPosition(0))
         SmartDashboard.putNumber('driver/linear_displacement', self.linear_displacement)
         SmartDashboard.putNumber('driver/angular_displacement', self.angular_displacement)
         SmartDashboard.putNumber('driver/current_distance', self.current_distance)
