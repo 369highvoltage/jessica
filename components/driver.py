@@ -31,8 +31,10 @@ class Driver:
     ANGULAR_SAMPLE_RATE = 4
     # LOW_GEAR_RATIO = 0.01543
     # HIGH_GEAR_RATIO = 0.03516
-    LOW_GEAR_RATIO = 0.0102
-    HIGH_GEAR_RATIO = 0.0221
+    # LOW_GEAR_RATIO = 0.0102
+    # HIGH_GEAR_RATIO = 0.0221
+    # CONV_RATIO = 0.0186
+    CONV_RATIO = 0.0419
     MAX_SPEED = 1
     MIN_SPEED = -1
     dist_kP = tunable(0.04, doc="driver distance P pid value")
@@ -102,12 +104,7 @@ class Driver:
     @property
     def current_distance(self):
         average_position = (self.left_encoder_motor.getSelectedSensorPosition(0) + self.right_encoder_motor.getSelectedSensorPosition(0)) / 2
-        actual_position = 0
-        if self.gear_mode is GearMode.LOW:
-            actual_position = Driver.LOW_GEAR_RATIO * average_position
-        if self.gear_mode is GearMode.HIGH:
-            actual_position = Driver.HIGH_GEAR_RATIO * average_position
-        return actual_position
+        return Driver.CONV_RATIO * average_position
 
     # calculations based on velocity
     @property

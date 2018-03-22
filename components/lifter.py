@@ -10,9 +10,6 @@ class MovementDir(Enum):
     STOP = auto()
 
 
-"""
-    Class Lifter (extends Elevator)
-"""
 class Lifter(Position):
     elevator_motor: WPI_TalonSRX
     elevator_bottom_switch: DigitalInput
@@ -20,7 +17,6 @@ class Lifter(Position):
     carriage_motor: WPI_TalonSRX
     carriage_bottom_switch: DigitalInput
     carriage_top_switch: DigitalInput
-    carriage_encoder: AnalogInput
 
     el_down = -1
     el_up = 1
@@ -39,6 +35,7 @@ class Lifter(Position):
     ALLOWABLE_ERROR = 0
 
     def __init__(self):
+        super().__init__()
         self.carriage_motor_speed = 0.0
         self.elevator_motor_speed = 0.0
         self.manual_control = True
@@ -55,28 +52,47 @@ class Lifter(Position):
     def move_carriage(self, speed: float):
         self.carriage_motor_speed = speed
 
+    def manual_reset(self):
+        self.is_reset = True
+        self.reset_encoders()
+        self.target_position = self.positions[0]
+        self.index = 0
+
+    def reset_encoders(self):
+        self.carriage_motor.setSelectedSensorPosition(0, 0, Lifter.TIMEOUT_MS)
+        self.elevator_motor.setSelectedSensorPosition(0, 0, Lifter.TIMEOUT_MS)
+
     def reset_position(self):
         if self.elevator_bottom_switch.get() and self.carriage_bottom_switch.get():
             self._limit_elevator(0)
             self._limit_carriage(0)
-            self.elevator_motor.setSelectedSensorPosition(0, 0, Lifter.TIMEOUT_MS)
+            self.reset_encoders()
             self.is_reset = True
-        self._limit_elevator(-0.25)
-        self._limit_carriage(-0.25)
+            self.target_position = self.positions[0]
+            self.index = 0
+        if not self.elevator_bottom_switch.get():
+            self._limit_elevator(-0.25)
+        if not self.carriage_bottom_switch.get():
+            self._limit_carriage(-0.25)
         self.is_reset = False
 
     def move(self, direction: MovementDir):
         self.direction = direction
 
     def configure_talons(self):
+        # elevator config
+
         self.elevator_motor.setNeutralMode(NeutralMode.Brake)
-        self.carriage_motor.setNeutralMode(NeutralMode.Brake)
 
         self.elevator_motor.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, 0, Lifter.TIMEOUT_MS)
-        self.elevator_motor.setSensorPhase(True)
 
+        self.elevator_motor.setSensorPhase(True)
         self.elevator_motor.setInverted(True)
-        self.carriage_motor.setInverted(True)
+
+        self.elevator_motor.configNominalOutputForward(Lifter.ELEVATOR_ZERO, Lifter.TIMEOUT_MS)
+        self.elevator_motor.configNominalOutputReverse(Lifter.ELEVATOR_ZERO, Lifter.TIMEOUT_MS)
+        self.elevator_motor.configPeakOutputForward(Lifter.el_up, Lifter.TIMEOUT_MS)
+        self.elevator_motor.configPeakOutputReverse(Lifter.el_down, Lifter.TIMEOUT_MS)
 
         self.elevator_motor.configNominalOutputForward(Lifter.ELEVATOR_ZERO, Lifter.TIMEOUT_MS)
         self.elevator_motor.configNominalOutputReverse(Lifter.ELEVATOR_ZERO, Lifter.TIMEOUT_MS)
@@ -90,11 +106,38 @@ class Lifter(Position):
         self.elevator_motor.config_kI(0, Lifter.ELEVATOR_kI, Lifter.TIMEOUT_MS)
         self.elevator_motor.config_kD(0, Lifter.ELEVATOR_kD, Lifter.TIMEOUT_MS)
 
+        # carriage config
+
+        self.carriage_motor.setNeutralMode(NeutralMode.Brake)
+
+        self.carriage_motor.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, 0, Lifter.TIMEOUT_MS)
+
+        self.carriage_motor.setSensorPhase(True)
+        self.carriage_motor.setInverted(True)
+
+        self.carriage_motor.configNominalOutputForward(Lifter.ELEVATOR_ZERO, Lifter.TIMEOUT_MS)
+        self.carriage_motor.configNominalOutputReverse(Lifter.ELEVATOR_ZERO, Lifter.TIMEOUT_MS)
+        self.carriage_motor.configPeakOutputForward(Lifter.el_up, Lifter.TIMEOUT_MS)
+        self.carriage_motor.configPeakOutputReverse(Lifter.el_down, Lifter.TIMEOUT_MS)
+
+        self.carriage_motor.configNominalOutputForward(Lifter.ELEVATOR_ZERO, Lifter.TIMEOUT_MS)
+        self.carriage_motor.configNominalOutputReverse(Lifter.ELEVATOR_ZERO, Lifter.TIMEOUT_MS)
+        self.carriage_motor.configPeakOutputForward(Lifter.el_up, Lifter.TIMEOUT_MS)
+        self.carriage_motor.configPeakOutputReverse(Lifter.el_down, Lifter.TIMEOUT_MS)
+
+        self.carriage_motor.configAllowableClosedloopError(0, Lifter.ALLOWABLE_ERROR, Lifter.TIMEOUT_MS)
+
+        self.carriage_motor.config_kF(0, Lifter.ELEVATOR_kF, Lifter.TIMEOUT_MS)
+        self.carriage_motor.config_kP(0, Lifter.ELEVATOR_kP, Lifter.TIMEOUT_MS)
+        self.carriage_motor.config_kI(0, Lifter.ELEVATOR_kI, Lifter.TIMEOUT_MS)
+        self.carriage_motor.config_kD(0, Lifter.ELEVATOR_kD, Lifter.TIMEOUT_MS)
+
     def _limit_elevator(self, speed):
         if self.elevator_bottom_switch.get() and speed < 0:
             self.elevator_motor.set(Lifter.ELEVATOR_ZERO)
         else:
-            self.elevator_motor.set(speed + Lifter.ELEVATOR_ZERO)
+            s = speed + Lifter.ELEVATOR_ZERO
+            self.elevator_motor.set(s * 0.75)
 
     def _limit_carriage(self, speed):
         # if (self.carriage_bottom_switch.get() and speed < 0) \
@@ -114,15 +157,16 @@ class Lifter(Position):
                 self._limit_elevator(0)
                 self._limit_carriage(0)
             if self.direction is MovementDir.UP:
-                # self._limit_elevator(self.speed)
+                self._limit_elevator(self.speed)
                 self._limit_carriage(self.speed)
             if self.direction is MovementDir.DOWN:
-                # self._limit_elevator(-self.speed)
+                self._limit_elevator(-self.speed)
                 self._limit_carriage(-self.speed)
         else:
             if self.is_reset:
-                # self.elevator_motor.set(WPI_TalonSRX.ControlMode.Position, self.get_target_distances()["elevator"])
-                pass
+                distances = self.get_target_distances()
+                self.elevator_motor.set(WPI_TalonSRX.ControlMode.Position, distances["elevator"])
+                self.carriage_motor.set(WPI_TalonSRX.ControlMode.Position, distances["carriage"])
             else:
                 self.reset_position()
 
@@ -132,7 +176,16 @@ class Lifter(Position):
         SmartDashboard.putNumber('lifter/elevator_motor_speed', self.elevator_motor_speed)
         SmartDashboard.putNumber('lifter/carriage_motor_speed', self.carriage_motor_speed)
         SmartDashboard.putNumber('lifter/elevator_encoder', self.elevator_motor.getSelectedSensorPosition(0))
-        SmartDashboard.putNumber('lifter/carriage_encoder', self.carriage_encoder.getValue())
+        SmartDashboard.putNumber('lifter/carriage_encoder', self.carriage_motor.getSelectedSensorPosition(0))
+        cd = self.current_distance()
+        SmartDashboard.putNumber('lifter/current_dist_elevator', cd["elevator"] * Position.ELEVATOR_CONV_FACTOR)
+        SmartDashboard.putNumber('lifter/current_dist_carriage', cd["carriage"] * Position.CARRIAGE_CONV_FACTOR)
+        tg = self.get_target_distances()
+        SmartDashboard.putNumber('lifter/target_dist_elevator', tg["elevator"])
+        SmartDashboard.putNumber('lifter/target_dist_carriage', tg["carriage"])
+        SmartDashboard.putNumber('lifter/position_current_distance', self._current_distance)
+        SmartDashboard.putNumber('lifter/position_target_distance', self.target_distance)
+        SmartDashboard.putBoolean('lifter/is_at_target_distance', self.is_at_target_distance())
 
     def current_distance(self) -> dict:
         return {

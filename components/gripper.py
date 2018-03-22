@@ -1,12 +1,21 @@
-from wpilib import Talon, DoubleSolenoid, SmartDashboard, DigitalInput, Relay
-from magicbot import tunable
+from wpilib import \
+    Talon, \
+    DoubleSolenoid, \
+    SmartDashboard, \
+    Victor, \
+    Relay, \
+    AnalogPotentiometer
 from enum import Enum, auto
 
+class GripPosition(Enum):
+    TOP = auto()
+    BOTTOM = auto()
 
 class GripState(Enum):
     PUSH = auto()
     PULL = auto()
     STOP = auto()
+
 
 class GripLiftState(Enum):
     UP = auto()
@@ -17,11 +26,13 @@ class GripLiftState(Enum):
 class Gripper:
     claw_left_motor: Talon
     claw_right_motor: Talon
-
-    claw_up_limit: DigitalInput
-    claw_lift_motor: Relay
-
+    claw_pot: AnalogPotentiometer
+    claw_lift_motor: Victor
     claw_open_solenoid: DoubleSolenoid
+
+    TOP_VAL = 0.5
+    BOTTOM_VAL = 0.8
+    SPEED = 0.25
 
     def __init__(self):
         self.open_state = None
@@ -29,6 +40,7 @@ class Gripper:
         self.speed = 1.0
         self.default_speed = 1.0
         self.lift_state = GripLiftState.STOP
+        self.grip_position = None
 
     def on_enable(self):
         self.set_claw_open_state(True)
@@ -53,6 +65,18 @@ class Gripper:
     def set_lift_state(self, lift_state: GripLiftState):
         self.lift_state = lift_state
 
+    def set_position_top(self):
+        self.lift_state = GripLiftState.UP
+
+    def set_position_bottom(self):
+        self.lift_state = GripLiftState.DOWN
+
+    def toggle_position(self):
+        if self.grip_position is GripPosition.TOP:
+            self.set_position_bottom()
+        if self.grip_position is GripPosition.BOTTOM:
+            self.set_position_top()
+
     def execute(self):
         if self.grip_state is GripState.STOP:
             self.claw_left_motor.set(0)
@@ -65,14 +89,21 @@ class Gripper:
             self.claw_right_motor.set(-sp)
 
         if self.lift_state is GripLiftState.STOP:
-            self.claw_lift_motor.set(Relay.Value.kOff)
+            self.claw_lift_motor.set(0)
         elif self.lift_state is GripLiftState.UP:
-            if self.claw_up_limit.get():
-                self.claw_lift_motor.set(Relay.Value.kOff)
+            if self.claw_pot.get() <= Gripper.TOP_VAL:
+                self.claw_lift_motor.set(0)
+                self.lift_state = GripLiftState.STOP
+                self.grip_position = GripPosition.TOP
             else:
-                self.claw_lift_motor.set(Relay.Value.kForward)
+                self.claw_lift_motor.set(Gripper.SPEED)
         elif self.lift_state is GripLiftState.DOWN:
-            self.claw_lift_motor.set(Relay.Value.kReverse)
+            if self.claw_pot.get() >= Gripper.BOTTOM_VAL:
+                self.claw_lift_motor.set(0)
+                self.lift_state = GripLiftState.STOP
+                self.grip_position = GripPosition.BOTTOM
+            else:
+                self.claw_lift_motor.set(-Gripper.SPEED)
 
         if self.grip_state is GripState.STOP:
             SmartDashboard.putString('gripper/grip_state', 'STOP')
@@ -88,5 +119,5 @@ class Gripper:
         if self.lift_state is GripLiftState.UP:
             SmartDashboard.putString('gripper/lift_state', 'UP')
 
-        SmartDashboard.putString('gripper/lift_up_limit', self.claw_up_limit.get())
+        SmartDashboard.putNumber('gripper/claw_pot', self.claw_pot.get())
 

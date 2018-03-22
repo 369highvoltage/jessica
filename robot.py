@@ -9,7 +9,7 @@ from wpilib import \
     AnalogPotentiometer, \
     Talon, \
     SmartDashboard, \
-    Relay, \
+    Victor, \
     Compressor, \
     AnalogInput
 from ctre import WPI_TalonSRX
@@ -18,7 +18,6 @@ from components.driver import Driver, GearMode
 from components.lifter import Lifter, MovementDir
 from utilities import truncate_float, normalize_range
 from components.gripper import Gripper, GripState, GripLiftState
-
 
 
 class Jessica(magicbot.MagicRobot):
@@ -52,15 +51,14 @@ class Jessica(magicbot.MagicRobot):
         self.carriage_motor = WPI_TalonSRX(6)
         self.carriage_bottom_switch = DigitalInput(1) # was 2
         self.carriage_top_switch = DigitalInput(2) # was 1
-        self.carriage_encoder = AnalogInput(1)
-        self.carriage_pot = AnalogPotentiometer(0)
 
         # gripper component dependencies
         self.claw_left_motor = Talon(0)
         self.claw_right_motor = Talon(1)
         self.claw_open_solenoid = DoubleSolenoid(2, 3)
         self.claw_up_limit = DigitalInput(0)
-        self.claw_lift_motor = Relay(0)
+        self.claw_lift_motor = Victor(3)
+        self.claw_pot = AnalogPotentiometer(0)
 
         # controllers
         self.controller = Joystick(0)
@@ -73,6 +71,9 @@ class Jessica(magicbot.MagicRobot):
     # Periodic: Called on each iteration of the control loop
     def autonomousInit(self):
         self.driver.set_gear(GearMode.LOW)
+        self.gripper.set_claw_open_state(False)
+        self.lifter.manual_control = False
+        self.lifter.manual_reset()
     
     def autonomousPeriodic(self):
         pass
@@ -80,6 +81,7 @@ class Jessica(magicbot.MagicRobot):
     def teleopInit(self):
         self.driver.set_gear(GearMode.LOW)
         self.curve = True
+        self.gripper.set_position_bottom()
         # self.compressor.stop()
     
     def teleopPeriodic(self):
@@ -128,32 +130,36 @@ class Jessica(magicbot.MagicRobot):
         SmartDashboard.putNumber("controller/pov", self.controller.getPOV())
 
         # elevator control with up and down on d-pad
-        if self.controller.getPOV() == 0:
-            self.lifter.move(MovementDir.UP)
-            # self.lifter.up()
-        elif self.controller.getPOV() == 180:
-            self.lifter.move(MovementDir.DOWN)
-            # self.lifter.down()
+        if self.lifter.manual_control:
+            if self.operator.getPOV() == 0:
+                self.lifter.move(MovementDir.UP)
+            elif self.operator.getPOV() == 180:
+                self.lifter.move(MovementDir.DOWN)
+            else:
+                self.lifter.move(MovementDir.STOP)
         else:
-            self.lifter.move(MovementDir.STOP)
+            if self.operator.getRawButtonPressed(4):
+                self.lifter.up()
+            elif self.operator.getRawButtonPressed(2):
+                self.lifter.down()
 
         # use triangle to open and close gripper
-        if self.controller.getRawButtonPressed(4):
+        if self.operator.getRawButtonPressed(7):
             self.gripper.toggle_open()
 
         # use square to shoot based on the speed from r2
         # use x to pull and fixed speed
-        if self.controller.getRawButton(1):
+        if self.operator.getRawButton(1):
             self.gripper.set_grip_speed(r2)
             self.gripper.set_grip_state(GripState.PUSH)
-        elif self.controller.getRawButton(2):
+        elif self.operator.getRawButton(3):
             self.gripper.set_grip_speed(self.gripper.default_speed)
             self.gripper.set_grip_state(GripState.PULL)
         else:
             self.gripper.set_grip_state(GripState.STOP)
 
-        if self.controller.getRawButtonPressed(3):
-            self.lifter.manual_control = not self.lifter.manual_control
+        # if self.controller.getRawButtonPressed(3):
+        #     self.lifter.manual_control = not self.lifter.manual_control
 
         # if self.controller.getRawButtonPressed(5):
         #     self.lifter.down()
@@ -161,6 +167,11 @@ class Jessica(magicbot.MagicRobot):
         #     self.lifter.up()
         if self.controller.getRawButtonPressed(6):
             self.driver.reset_drive_sensors()
+
+        if self.operator.getRawButtonPressed(6):
+            self.lifter.manual_control = not self.lifter.manual_control
+        if self.operator.getRawButtonPressed(5):
+            self.lifter.manual_reset()
 
 
 if __name__ == '__main__':

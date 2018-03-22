@@ -118,14 +118,14 @@ class Position:
         Poll this function to determine when to stop the routine (Based on raw distances).
     """
     def is_at_target_distance(self) -> bool:
-        return self.target_distance - 0.1 < self._current_distance < self.target_distance + 0.1
+        return self.target_distance - 5.0 < self._current_distance < self.target_distance + 5.0
     #
     # """
     #     Poll this function to determine when to stop the routine (Based on named positions).
     # """
     # def is_at_target_position(self) -> bool:
     #     return self.target_distance - 0.1 < self.current_distance < self.target_distance + 0.1
-    
+
     # """
     #     Poll this function in the execute() method & pass in the raw encoder values.
     # """
@@ -144,6 +144,5 @@ class Position:
 
         return { # Return distances in counts.
             "carriage": carriage/Position.CARRIAGE_CONV_FACTOR,
-            # "carriage": 0,
             "elevator": elevator/Position.ELEVATOR_CONV_FACTOR
         }
