@@ -74,8 +74,10 @@ class Gripper:
     def toggle_position(self):
         if self.grip_position is GripPosition.TOP:
             self.set_position_bottom()
-        if self.grip_position is GripPosition.BOTTOM:
+        elif self.grip_position is GripPosition.BOTTOM:
             self.set_position_top()
+        else:
+            self.set_position_bottom()
 
     def execute(self):
         if self.grip_state is GripState.STOP:
@@ -118,6 +120,13 @@ class Gripper:
             SmartDashboard.putString('gripper/lift_state', 'DOWN')
         if self.lift_state is GripLiftState.UP:
             SmartDashboard.putString('gripper/lift_state', 'UP')
+
+        if self.grip_position is GripPosition.TOP:
+            SmartDashboard.putString('gripper/grip_position', 'TOP')
+        elif self.grip_position is GripPosition.BOTTOM:
+            SmartDashboard.putString('gripper/grip_position', 'BOTTOM')
+        else:
+            SmartDashboard.putString('gripper/grip_position', 'None')
 
         SmartDashboard.putNumber('gripper/claw_pot', self.claw_pot.get())
 

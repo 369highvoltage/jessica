@@ -1,5 +1,5 @@
-from components.driver import Driver
-from wpilib import ADXRS450_Gyro
+from components.driver import Driver, GearMode
+from wpilib import ADXRS450_Gyro, DriverStation
 from components.lifter import Lifter
 from components.gripper import Gripper, GripState
 # from robotpy_ext.autonomous import state as auto_state
@@ -18,6 +18,7 @@ class Auto(AutonomousStateMachine):
         self.__current_state = {}
         self.gen_instance = None
         self.gen_instance = self.get_next_state()
+        self.ds = DriverStation.getInstance()
 
     # Generator which moves to the next state when ready.
     def get_next_state(self):
@@ -37,7 +38,7 @@ class Auto(AutonomousStateMachine):
         self.driver.set_gear(gear=GearMode.LOW)
         self.gripper.set_claw_open_state(False)
         self.lifter.manual_control = False
-        self.lifter.manual_reset()
+        self.gripper.set_position_bottom()
         self.next(now=True)
 
     @state
@@ -68,6 +69,7 @@ class Auto(AutonomousStateMachine):
         self.driver.set_curve(self.__current_state ["linear"], 0.0)
 
         if self.driver.current_distance >= self.__current_state ["displacement"]:
+            self.driver.set_curve(0.0, 0.0)
             self.next()
 
     @timed_state(duration=5.0, must_finish=True, next_state="call_next")

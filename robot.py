@@ -57,8 +57,11 @@ class Jessica(magicbot.MagicRobot):
         self.claw_right_motor = Talon(1)
         self.claw_open_solenoid = DoubleSolenoid(2, 3)
         self.claw_up_limit = DigitalInput(0)
-        self.claw_lift_motor = Victor(3)
+        self.claw_lift_motor = Victor(4)
         self.claw_pot = AnalogPotentiometer(0)
+
+        # climber
+        self.climber_motor = Talon(2)
 
         # controllers
         self.controller = Joystick(0)
@@ -84,10 +87,8 @@ class Jessica(magicbot.MagicRobot):
         self.gripper.set_position_bottom()
         # self.compressor.stop()
         self.p2_pressed_map = {}
-        self.p2_pressed_map[0] = {"on": False}
-        self.p2_pressed_map[0] = {"pressed": False}
-        self.p2_pressed_map[180] = {"on": False}
-        self.p2_pressed_map[180] = {"pressed": False}
+        self.p2_pressed_map[0] = {"on": False, "pressed": False}
+        self.p2_pressed_map[180] = {"on": False, "pressed": False}
     
     def teleopPeriodic(self):
 
@@ -109,6 +110,12 @@ class Jessica(magicbot.MagicRobot):
         # touch pad toggles gear mode
         if self.controller.getRawButtonPressed(14):
             self.driver.toggle_gear()
+
+
+        # self.claw_lift_motor.set(-self.operator.getRawAxis(5))
+
+        if self.controller.getRawButtonPressed(3):
+            self.gripper.toggle_position()
 
         # grip elevator motor with l1 and r1
         # if self.controller.getRawButton(5):
@@ -152,42 +159,73 @@ class Jessica(magicbot.MagicRobot):
                 self.p2_pressed_map[180]["pressed"] = True
             self.p2_pressed_map[180]["on"] = False
 
-        if self.p2_pressed_map[0]["pressed"]:
-            self.lifter.up()
-        if self.p2_pressed_map[180]["pressed"]:
+        # if self.p2_pressed_map[0]["pressed"]:
+        #     self.lifter.up()
+        #     self.lifter.manual_control = False
+        # if self.p2_pressed_map[180]["pressed"]:
+        #     self.lifter.down()
+        #     self.lifter.manual_control = False
+
+        operator_l2 = normalize_range(self.operator.getRawAxis(3), -1, 1, 0, 1)
+        operator_r2 = normalize_range(self.operator.getRawAxis(4), -1, 1, 0, 1)
+
+        if self.operator.getRawButtonPressed(5):
             self.lifter.down()
+            self.lifter.manual_control = False
+        if self.operator.getRawButtonPressed(6):
+            self.lifter.up()
+            self.lifter.manual_control = False
 
         # up and down on d-pad moves between positions
-        if self.lifter.manual_control:
-            if self.operator.getPOV() == 0:
-                self.lifter.move(MovementDir.UP)
-            elif self.operator.getPOV() == 180:
-                self.lifter.move(MovementDir.DOWN)
-            else:
-                self.lifter.move(MovementDir.STOP)
-        else:
-            if self.operator.getRawButtonPressed(4):
-                self.lifter.up()
-            elif self.operator.getRawButtonPressed(2):
-                self.lifter.down()
+        # if self.lifter.manual_control:
+        #     if self.operator.getPOV() == 0:
+        #         self.lifter.move(MovementDir.UP)
+        #     elif self.operator.getPOV() == 180:
+        #         self.lifter.move(MovementDir.DOWN)
+        #     else:
+        #         self.lifter.move(MovementDir.STOP)
+        # else:
+        #     if self.operator.getRawButtonPressed(4):
+        #         self.lifter.up()
+        #     elif self.operator.getRawButtonPressed(2):
+        #         self.lifter.down()
+
+        if self.operator.getPOV() == 0:
+            self.lifter.move_sync(1)
+            self.lifter.manual_control = True
+        elif self.operator.getPOV() == 180:
+            self.lifter.move_sync(-1)
+            self.lifter.manual_control = True
+        elif self.lifter.manual_control:
+            self.lifter.move_sync(0)
 
         # left-y moves the elevator
-        self.lifter.move_sync(self.operator.getRawAxis(1))
+        # operator_left_y = -self.operator.getRawAxis(1)
+        # if not (-0.1 < operator_left_y < 0.1):
+        #     self.lifter.manual_control = True
+        # self.lifter.move_sync(operator_left_y)
+
+
 
         # use triangle to open and close gripper
-        if self.operator.getRawButtonPressed(7):
+        if self.operator.getRawButtonPressed(4):
             self.gripper.toggle_open()
 
         # use square to shoot based on the speed from r2
         # use x to pull and fixed speed
         if self.operator.getRawButton(1):
-            self.gripper.set_grip_speed(r2)
+            self.gripper.set_grip_speed(operator_r2)
             self.gripper.set_grip_state(GripState.PUSH)
-        elif self.operator.getRawButton(3):
+        elif self.operator.getRawButton(2):
             self.gripper.set_grip_speed(self.gripper.default_speed)
             self.gripper.set_grip_state(GripState.PULL)
         else:
             self.gripper.set_grip_state(GripState.STOP)
+
+        if self.operator.getRawButton(7):
+            self.climber_motor.set(-1)
+        else:
+            self.climber_motor.set(0)
 
         # if self.controller.getRawButtonPressed(3):
         #     self.lifter.manual_control = not self.lifter.manual_control
@@ -199,10 +237,10 @@ class Jessica(magicbot.MagicRobot):
         if self.controller.getRawButtonPressed(6):
             self.driver.reset_drive_sensors()
 
-        if self.operator.getRawButtonPressed(6):
-            self.lifter.manual_control = not self.lifter.manual_control
-        if self.operator.getRawButtonPressed(5):
-            self.lifter.manual_reset()
+        # if self.operator.getRawButtonPressed(6):
+        #     self.lifter.manual_control = not self.lifter.manual_control
+        # if self.operator.getRawButtonPressed(5):
+        #     self.lifter.manual_reset()
 
         for b in self.p2_pressed_map.keys():
             self.p2_pressed_map[b]["pressed"] = False

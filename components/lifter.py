@@ -32,13 +32,13 @@ class Lifter(Position):
     ELEVATOR_kI = 0.0
     ELEVATOR_kD = 0.0
 
-    ALLOWABLE_ERROR = 0
+    ALLOWABLE_ERROR = 2
 
     def __init__(self):
         super().__init__()
         self.carriage_motor_speed = 0.0
         self.elevator_motor_speed = 0.0
-        self.manual_control = True
+        self.manual_control = False
         self.is_reset = False
         self.speed = 1.0
         self.direction = MovementDir.STOP
@@ -74,11 +74,12 @@ class Lifter(Position):
             self.is_reset = True
             self.target_position = self.positions[0]
             self.index = 0
-        if not self.elevator_bottom_switch.get():
-            self._limit_elevator(-0.25)
-        if not self.carriage_bottom_switch.get():
-            self._limit_carriage(-0.25)
-        self.is_reset = False
+        else:
+            if not self.elevator_bottom_switch.get():
+                self._limit_elevator(-0.25)
+            if not self.carriage_bottom_switch.get():
+                self._limit_carriage(-0.25)
+            self.is_reset = False
 
     def move(self, direction: MovementDir):
         self.direction = direction
@@ -139,26 +140,30 @@ class Lifter(Position):
     def _limit_elevator(self, speed):
         # if self.elevator_bottom_switch.get() and speed < 0:
         #     self.elevator_motor.set(Lifter.ELEVATOR_ZERO)
-        if (self.elevator_motor.get() and speed < 0) \
-                or (self.current_distance()["elevate"]*Lifter.ELEVATOR_CONV_FACTOR < Lifter.ELEVATOR_MAX_HEIGHT - 2 and speed > 0):
+        if (self.elevator_bottom_switch.get() and speed < 0) \
+                or (self.current_distance()["elevator"]*Lifter.ELEVATOR_CONV_FACTOR >= Lifter.ELEVATOR_MAX_HEIGHT - 2 and speed > 0):
             self.elevator_motor.set(Lifter.ELEVATOR_ZERO)
         else:
             s = speed + Lifter.ELEVATOR_ZERO
             self.elevator_motor.set(s * 0.75)
 
     def _limit_carriage(self, speed):
-        # if (self.carriage_bottom_switch.get() and speed < 0) \
-        #         or (self.carriage_top_switch.get() and speed > 0):
-        if self.carriage_top_switch.get() and speed > 0:
+        if (self.carriage_bottom_switch.get() and speed < 0) \
+                or (self.carriage_top_switch.get() and speed > 0):
+        # if self.carriage_top_switch.get() and speed > 0:
             self.carriage_motor.set(Lifter.CARRIAGE_ZERO)
         else:
             s = speed + Lifter.CARRIAGE_ZERO
             self.carriage_motor.set(s * 0.75)
 
     def execute(self):
-        if -0.1 < self.elevator_motor_speed < 0.1:
+        if not self.manual_control:
             if self.is_reset:
                 distances = self.get_target_distances()
+                # if self.is_at_target_distance():
+                #     self.elevator_motor.set(Lifter.ELEVATOR_ZERO)
+                #     self.carriage_motor.set(Lifter.CARRIAGE_ZERO)
+                # else:
                 self.elevator_motor.set(WPI_TalonSRX.ControlMode.Position, distances["elevator"])
                 self.carriage_motor.set(WPI_TalonSRX.ControlMode.Position, distances["carriage"])
             else:
@@ -191,6 +196,7 @@ class Lifter(Position):
         SmartDashboard.putBoolean('lifter/elevator_bottom_switch', self.elevator_bottom_switch.get())
         SmartDashboard.putBoolean('lifter/carriage_bottom_switch', self.carriage_bottom_switch.get())
         SmartDashboard.putBoolean('lifter/carriage_top_switch', self.carriage_top_switch.get())
+        SmartDashboard.putBoolean('lifter/carriage_bottom_switch', self.carriage_bottom_switch.get())
         SmartDashboard.putNumber('lifter/elevator_motor_speed', self.elevator_motor_speed)
         SmartDashboard.putNumber('lifter/carriage_motor_speed', self.carriage_motor_speed)
         SmartDashboard.putNumber('lifter/elevator_encoder', self.elevator_motor.getSelectedSensorPosition(0))
