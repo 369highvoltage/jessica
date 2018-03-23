@@ -46,6 +46,10 @@ class Lifter(Position):
     def setup(self):
         self.configure_talons()
 
+    def move_sync(self, speed: float):
+        self.move_elevator(speed)
+        self.move_carriage(speed)
+
     def move_elevator(self, speed: float):
         self.elevator_motor_speed = speed
 
@@ -133,7 +137,10 @@ class Lifter(Position):
         self.carriage_motor.config_kD(0, Lifter.ELEVATOR_kD, Lifter.TIMEOUT_MS)
 
     def _limit_elevator(self, speed):
-        if self.elevator_bottom_switch.get() and speed < 0:
+        # if self.elevator_bottom_switch.get() and speed < 0:
+        #     self.elevator_motor.set(Lifter.ELEVATOR_ZERO)
+        if (self.elevator_motor.get() and speed < 0) \
+                or (self.current_distance()["elevate"]*Lifter.ELEVATOR_CONV_FACTOR < Lifter.ELEVATOR_MAX_HEIGHT - 2 and speed > 0):
             self.elevator_motor.set(Lifter.ELEVATOR_ZERO)
         else:
             s = speed + Lifter.ELEVATOR_ZERO
@@ -149,26 +156,37 @@ class Lifter(Position):
             self.carriage_motor.set(s * 0.75)
 
     def execute(self):
-        if self.manual_control:
-            self.is_reset = False
-            # self._limit_elevator(self.elevator_motor_speed)
-            # self._limit_carriage(self.carriage_motor_speed)
-            if self.direction is MovementDir.STOP:
-                self._limit_elevator(0)
-                self._limit_carriage(0)
-            if self.direction is MovementDir.UP:
-                self._limit_elevator(self.speed)
-                self._limit_carriage(self.speed)
-            if self.direction is MovementDir.DOWN:
-                self._limit_elevator(-self.speed)
-                self._limit_carriage(-self.speed)
-        else:
+        if -0.1 < self.elevator_motor_speed < 0.1:
             if self.is_reset:
                 distances = self.get_target_distances()
                 self.elevator_motor.set(WPI_TalonSRX.ControlMode.Position, distances["elevator"])
                 self.carriage_motor.set(WPI_TalonSRX.ControlMode.Position, distances["carriage"])
             else:
                 self.reset_position()
+        else:
+            self._limit_elevator(self.elevator_motor_speed)
+            self._limit_carriage(self.carriage_motor_speed)
+
+        # if self.manual_control:
+        #     # self.is_reset = False
+        #     # self._limit_elevator(self.elevator_motor_speed)
+        #     # self._limit_carriage(self.carriage_motor_speed)
+        #     if self.direction is MovementDir.STOP:
+        #         self._limit_elevator(0)
+        #         self._limit_carriage(0)
+        #     if self.direction is MovementDir.UP:
+        #         self._limit_elevator(self.speed)
+        #         self._limit_carriage(self.speed)
+        #     if self.direction is MovementDir.DOWN:
+        #         self._limit_elevator(-self.speed)
+        #         self._limit_carriage(-self.speed)
+        # else:
+        #     if self.is_reset:
+        #         distances = self.get_target_distances()
+        #         self.elevator_motor.set(WPI_TalonSRX.ControlMode.Position, distances["elevator"])
+        #         self.carriage_motor.set(WPI_TalonSRX.ControlMode.Position, distances["carriage"])
+        #     else:
+        #         self.reset_position()
 
         SmartDashboard.putBoolean('lifter/elevator_bottom_switch', self.elevator_bottom_switch.get())
         SmartDashboard.putBoolean('lifter/carriage_bottom_switch', self.carriage_bottom_switch.get())

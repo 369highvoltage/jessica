@@ -83,8 +83,15 @@ class Jessica(magicbot.MagicRobot):
         self.curve = True
         self.gripper.set_position_bottom()
         # self.compressor.stop()
+        self.p2_pressed_map = {}
+        self.p2_pressed_map[0] = {"on": False}
+        self.p2_pressed_map[0] = {"pressed": False}
+        self.p2_pressed_map[180] = {"on": False}
+        self.p2_pressed_map[180] = {"pressed": False}
     
     def teleopPeriodic(self):
+
+        # player1 controls
         left_y = truncate_float(-self.controller.getRawAxis(1))
         right_x = truncate_float(self.controller.getRawAxis(2))
         right_y = truncate_float(-self.controller.getRawAxis(5))
@@ -129,7 +136,28 @@ class Jessica(magicbot.MagicRobot):
         SmartDashboard.putNumber("controller/direction", self.controller.getDirectionDegrees())
         SmartDashboard.putNumber("controller/pov", self.controller.getPOV())
 
+        # player2 controls
         # elevator control with up and down on d-pad
+        if self.operator.getPOV() == 0:
+            self.p2_pressed_map[0]["on"] = True
+        else:
+            if self.p2_pressed_map[0]["on"]:
+                self.p2_pressed_map[0]["pressed"] = True
+            self.p2_pressed_map[0]["on"] = False
+
+        if self.operator.getPOV() == 180:
+            self.p2_pressed_map[180]["on"] = True
+        else:
+            if self.p2_pressed_map[180]["on"]:
+                self.p2_pressed_map[180]["pressed"] = True
+            self.p2_pressed_map[180]["on"] = False
+
+        if self.p2_pressed_map[0]["pressed"]:
+            self.lifter.up()
+        if self.p2_pressed_map[180]["pressed"]:
+            self.lifter.down()
+
+        # up and down on d-pad moves between positions
         if self.lifter.manual_control:
             if self.operator.getPOV() == 0:
                 self.lifter.move(MovementDir.UP)
@@ -142,6 +170,9 @@ class Jessica(magicbot.MagicRobot):
                 self.lifter.up()
             elif self.operator.getRawButtonPressed(2):
                 self.lifter.down()
+
+        # left-y moves the elevator
+        self.lifter.move_sync(self.operator.getRawAxis(1))
 
         # use triangle to open and close gripper
         if self.operator.getRawButtonPressed(7):
@@ -173,6 +204,8 @@ class Jessica(magicbot.MagicRobot):
         if self.operator.getRawButtonPressed(5):
             self.lifter.manual_reset()
 
+        for b in self.p2_pressed_map.keys():
+            self.p2_pressed_map[b]["pressed"] = False
 
 if __name__ == '__main__':
     print("hello world")

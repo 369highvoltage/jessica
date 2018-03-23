@@ -27,7 +27,7 @@ class Driver:
     driver_gyro: ADXRS450_Gyro
 
     # constants
-    LINEAR_SAMPLE_RATE = 32
+    LINEAR_SAMPLE_RATE = 28
     ANGULAR_SAMPLE_RATE = 4
     # LOW_GEAR_RATIO = 0.01543
     # HIGH_GEAR_RATIO = 0.03516
@@ -191,10 +191,10 @@ class Driver:
         #     self._drive_to_target()
 
         if self.drive_mode is DriveModes.TANK:
-            left, right = self._get_moving_average(self.left_val, self.right_val)
-            self.drive_train.tankDrive(left, right)
-            SmartDashboard.putNumber("driver/left_speed", left)
-            SmartDashboard.putNumber("driver/right_speed", right)
+            # left, right = self._get_moving_average(self.left_val, self.right_val)
+            self.drive_train.tankDrive(self.left_val, self.right_val)
+            # SmartDashboard.putNumber("driver/left_speed", left)
+            # SmartDashboard.putNumber("driver/right_speed", right)
         if self.drive_mode is DriveModes.CURVE:
             linear, angular = self._get_moving_average(self.left_val, self.right_val)
             if -0.1 < linear < 0.1:
