@@ -69,17 +69,6 @@ class Jessica(magicbot.MagicRobot):
         self.el_mode = False
 
         # self.compressor = Compressor(module=0)
-    
-    # Init: Called when mode starts; optional 
-    # Periodic: Called on each iteration of the control loop
-    def autonomousInit(self):
-        self.driver.set_gear(GearMode.LOW)
-        self.gripper.set_claw_open_state(False)
-        self.lifter.manual_control = False
-        self.lifter.manual_reset()
-    
-    def autonomousPeriodic(self):
-        pass
 
     def teleopInit(self):
         self.driver.set_gear(GearMode.LOW)
@@ -89,6 +78,7 @@ class Jessica(magicbot.MagicRobot):
         self.p2_pressed_map = {}
         self.p2_pressed_map[0] = {"on": False, "pressed": False}
         self.p2_pressed_map[180] = {"on": False, "pressed": False}
+        self.climb_mode = False
     
     def teleopPeriodic(self):
 
@@ -144,6 +134,16 @@ class Jessica(magicbot.MagicRobot):
         SmartDashboard.putNumber("controller/pov", self.controller.getPOV())
 
         # player2 controls
+
+        if self.operator.getRawButtonPressed(14):
+            self.climb_mode = not self.climb_mode
+
+        if self.climb_mode:
+            self.lifter.manual_control = True
+            self.lifter.move_elevator(-self.operator.getRawAxis(5))
+            self.gripper.set_position_top()
+            self.lifter.move_carriage(-0.5)
+
         # elevator control with up and down on d-pad
         if self.operator.getPOV() == 0:
             self.p2_pressed_map[0]["on"] = True
@@ -190,13 +190,13 @@ class Jessica(magicbot.MagicRobot):
         #     elif self.operator.getRawButtonPressed(2):
         #         self.lifter.down()
 
-        if self.operator.getPOV() == 0:
+        if self.operator.getPOV() == 0 and not self.climb_mode:
             self.lifter.move_sync(1)
             self.lifter.manual_control = True
-        elif self.operator.getPOV() == 180:
+        elif self.operator.getPOV() == 180 and not self.climb_mode:
             self.lifter.move_sync(-1)
             self.lifter.manual_control = True
-        elif self.lifter.manual_control:
+        elif self.lifter.manual_control and not self.climb_mode:
             self.lifter.move_sync(0)
 
         # left-y moves the elevator
@@ -234,8 +234,8 @@ class Jessica(magicbot.MagicRobot):
         #     self.lifter.down()
         # if self.controller.getRawButtonPressed(6):
         #     self.lifter.up()
-        if self.controller.getRawButtonPressed(6):
-            self.driver.reset_drive_sensors()
+        # if self.controller.getRawButtonPressed(6):
+        #     self.driver.reset_drive_sensors()
 
         # if self.operator.getRawButtonPressed(6):
         #     self.lifter.manual_control = not self.lifter.manual_control
