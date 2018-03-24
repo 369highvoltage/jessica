@@ -18,7 +18,20 @@ class Auto(AutonomousStateMachine):
         self.__current_state = {}
         self.gen_instance = None
         self.gen_instance = self.get_next_state()
-        self.ds = DriverStation.getInstance()
+
+    def on_enable(self):
+        ds = DriverStation.getInstance()
+        self.start_location = ds.getLocation()
+
+        game_data = ds.getGameSpecificMessage()
+
+        self.switch_position = game_data[0]
+        self.scale_position = game_data[1]
+
+        self.driver.set_gear(gear=GearMode.LOW)
+        self.gripper.set_claw_open_state(False)
+        self.lifter.manual_control = False
+        self.gripper.set_position_bottom()
 
     # Generator which moves to the next state when ready.
     def get_next_state(self):
@@ -32,14 +45,6 @@ class Auto(AutonomousStateMachine):
             self.next_state_now(self.__current_state ["state"])
         else:
             self.next_state(self.__current_state ["state"])
-
-    @state(first=True)
-    def start(self):
-        self.driver.set_gear(gear=GearMode.LOW)
-        self.gripper.set_claw_open_state(False)
-        self.lifter.manual_control = False
-        self.gripper.set_position_bottom()
-        self.next(now=True)
 
     @state
     def call_next(self):
