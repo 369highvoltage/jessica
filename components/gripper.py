@@ -4,7 +4,8 @@ from wpilib import \
     SmartDashboard, \
     Victor, \
     Relay, \
-    AnalogPotentiometer
+    AnalogPotentiometer, \
+    Timer
 from enum import Enum, auto
 
 class GripPosition(Enum):
@@ -41,9 +42,11 @@ class Gripper:
         self.default_speed = 1.0
         self.lift_state = GripLiftState.STOP
         self.grip_position = None
+        self.grip_timer = Timer()
 
     def on_enable(self):
-        self.set_claw_open_state(True)
+        self.set_claw_open_state(False)
+        self.grip_timer.reset()
 
     def set_grip_speed(self, speed: float):
         self.speed = speed
@@ -70,6 +73,8 @@ class Gripper:
 
     def set_position_bottom(self):
         self.lift_state = GripLiftState.DOWN
+        self.grip_timer.reset()
+        self.grip_timer.start()
 
     def toggle_position(self):
         if self.grip_position is GripPosition.TOP:
@@ -100,10 +105,13 @@ class Gripper:
             else:
                 self.claw_lift_motor.set(Gripper.SPEED)
         elif self.lift_state is GripLiftState.DOWN:
-            if self.claw_pot.get() >= Gripper.BOTTOM_VAL:
+            # if self.claw_pot.get() >= Gripper.BOTTOM_VAL:
+            if self.grip_timer.hasPeriodPassed(1.25):
                 self.claw_lift_motor.set(0)
                 self.lift_state = GripLiftState.STOP
                 self.grip_position = GripPosition.BOTTOM
+                self.grip_timer.stop()
+                self.grip_timer.reset()
             else:
                 self.claw_lift_motor.set(-Gripper.SPEED)
 

@@ -20,6 +20,7 @@ class Auto(AutonomousStateMachine):
         self.gen_instance = self.get_next_state()
 
     def on_enable(self):
+        super().on_enable()
         ds = DriverStation.getInstance()
         self.start_location = ds.getLocation()
 

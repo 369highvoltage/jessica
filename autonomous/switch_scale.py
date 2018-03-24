@@ -8,14 +8,6 @@ class SwitchScale(Auto):
     DEFAULT = True
     MODE_NAME = "SwitchScale"
 
-    def on_enable(self):
-        super().on_enable()
-        side = DriverStation.getInstance().getGameSpecificMessage()[0]
-        if side == "L":
-            self.angle = 90
-        elif side == "R":
-            self.angle = -90
-
     @state(first=True)
     def start(self):
         angle = 0
@@ -48,14 +40,14 @@ class SwitchScale(Auto):
         if self.start_location != 2:
             if scale:
                 self.states = [
-                    {"state": "lift", "position": "portal"},
-                    {"state": "move", "linear": 0.25, "displacement": 324},
-                    {"state": "turn", "linear": 0.0, "angular": angle / (abs(angle) * 2), "angle": angle},
+                    {"state": "lift", "position": "floor"},
+                    {"state": "move", "linear": 0.25, "displacement": 192},  # 324
+                    # {"state": "turn", "linear": 0.0, "angular": angle / (abs(angle) * 2), "angle": angle},
                     {"state": "move", "linear": 0.25, "displacement": -12},
-                    {"state": "lift", "position": "scale_mid"},
+                    {"state": "lift", "position": "scale_high"},
                     {"state": "shoot"},
                     {"state": "stop_shooting"},
-                    {"state": "turn", "linear": 0.0, "angular": angle / (-abs(angle) * 2), "angle": 0.0},
+                    # {"state": "turn", "linear": 0.0, "angular": angle / (-abs(angle) * 2), "angle": 0.0},
                     {"state": "finish"}
                 ]
             elif switch:

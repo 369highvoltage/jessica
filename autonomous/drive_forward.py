@@ -6,10 +6,11 @@ from magicbot.state_machine import state
 class Scale(Auto):
     MODE_NAME = "Drive_Froward"
 
-    def __init__(self):
+    @state(first=True)
+    def start(self):
         self.states = [
-            { "state": "move", "linear": 0.25, "displacement": 196 },  # 324
-            { "state": "finish" }
+            {"state": "move", "linear": 0.25, "displacement": 196},  # 324
+            {"state": "finish"}
         ]
 
-        super().__init__()
+        self.next(now=True)

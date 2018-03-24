@@ -4,13 +4,12 @@ from components.driver import GearMode, Driver
 from magicbot.state_machine import state
 
 class Scale(Auto):
-    DEFAULT = True
     MODE_NAME = "Nothing"
 
-    def __init__(self):
-
+    @state(first=True)
+    def start(self):
         self.states = [
             { "state": "finish" }
         ]
 
-        super().__init__()
+        self.next(now=True)
