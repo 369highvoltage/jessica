@@ -41,9 +41,10 @@ class SwitchScale(Auto):
             if scale:
                 self.states = [
                     {"state": "lift", "position": "floor"},
-                    {"state": "move", "linear": 0.25, "displacement": 192},  # 324
-                    # {"state": "turn", "linear": 0.0, "angular": angle / (abs(angle) * 2), "angle": angle},
-                    {"state": "move", "linear": 0.25, "displacement": -12},
+                    {"state": "move", "linear": 0.25, "displacement": 60},
+                    # {"state": "move", "linear": 0.25, "displacement": 324},
+                    {"state": "turn", "linear": 0.0, "angular": angle / (abs(angle) * 2), "angle": angle},
+                    {"state": "move", "linear": -0.25, "displacement": -100},
                     {"state": "lift", "position": "scale_high"},
                     {"state": "shoot"},
                     {"state": "stop_shooting"},

@@ -150,7 +150,9 @@ class Lifter(Position):
     def _limit_carriage(self, speed):
         if (self.carriage_bottom_switch.get() and speed < 0) \
                 or (self.carriage_top_switch.get() and speed > 0):
+                # or (self.current_distance()["carriage"]*Lifter.CARRIAGE_CONV_FACTOR >= Lifter.CARRIAGE_MAX_HEIGHT - 2 and speed > 0):
         # if self.carriage_top_switch.get() and speed > 0:
+        # if self.carriage_bottom_switch.get() and speed < 0:
             self.carriage_motor.set(Lifter.CARRIAGE_ZERO)
         else:
             s = speed + Lifter.CARRIAGE_ZERO
@@ -171,6 +173,11 @@ class Lifter(Position):
         else:
             self._limit_elevator(self.elevator_motor_speed)
             self._limit_carriage(self.carriage_motor_speed)
+
+
+
+
+
 
         # if self.manual_control:
         #     # self.is_reset = False

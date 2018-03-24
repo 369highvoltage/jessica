@@ -33,6 +33,8 @@ class Auto(AutonomousStateMachine):
         self.gripper.set_claw_open_state(False)
         self.lifter.manual_control = False
         self.gripper.set_position_bottom()
+        self.driving = False
+        self.turning = False
 
     # Generator which moves to the next state when ready.
     def get_next_state(self):
@@ -59,23 +61,28 @@ class Auto(AutonomousStateMachine):
             # self.next(now=True)
 
     @state(must_finish=True)
-    def turn(self, initial_call):
-        if initial_call:
+    def turn(self):
+        if not self.turning:
             self.driver.reset_drive_sensors()
+        self.turning = True
         self.driver.set_curve(self.__current_state ["linear"], self.__current_state ["angular"]) # Turn at 0.5 speed.
 
         if (self.__current_state ["angle"]) - 15.0 < self.driver_gyro.getAngle() < (self.__current_state ["angle"] + 15.0):
+            self.turning = False
             self.driver.set_curve(0, 0)
             self.next()
 
     @state(must_finish=True)
-    def move(self, initial_call):
-        if initial_call:
+    def move(self):
+        if not self.driving:
             self.driver.reset_drive_sensors()
-        self.driver.set_curve(self.__current_state ["linear"], 0.0)
+        self.driving = True
+        self.driver.set_curve(self.__current_state ["linear"], -self.driver.current_angle*0.3)
 
-        if self.driver.current_distance >= self.__current_state ["displacement"]:
+        set_dist = self.__current_state ["displacement"]
+        if abs(self.driver.current_distance) >= abs(set_dist):
             self.driver.set_curve(0.0, 0.0)
+            self.driving = False
             self.next()
 
     @timed_state(duration=5.0, must_finish=True, next_state="call_next")
