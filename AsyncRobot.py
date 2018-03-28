@@ -39,12 +39,8 @@ class AsyncRobot(IterativeRobotBase):
         self.startLoop = False
         
         self._expirationTime = 0
-        self.loop = asyncio.get_event_loop()
-        self.events = {
-            "spin": asyncio.Event(),
-            "switch_mode": asyncio.Event(),
-            "interrupted": asyncio.Event()
-        }
+        self._loop = asyncio.get_event_loop()
+        self._interrupted = asyncio.Event()
 
         self._notifier = hal.initializeNotifier()
         
@@ -60,7 +56,7 @@ class AsyncRobot(IterativeRobotBase):
 
     def startCompetition(self) -> None:
         """Provide an alternate "main loop" via startCompetition()"""
-        self.robotInit(self.loop, self.events)
+        self.robotInit(self.loop, self._interrupted)
 
         hal.observeUserProgramStarting()
 
@@ -96,10 +92,10 @@ class AsyncRobot(IterativeRobotBase):
         """Coroutine. Polls the hardware FPGA Timer"""
             # If event flag is set:
             if not hal.waitForNotifierAlarm(self._notifier) == 0:
+                # Run loopFunc()
                 self.loop.call_soon(self.loopFunc)
                 self._expirationTime += self.period
                 self._updateAlarm()
-                self.events["spin"].set()
 
             # Poll more often than the Notifier updates.
             await asyncio.sleep(self.period/2)
@@ -113,28 +109,28 @@ class AsyncRobot(IterativeRobotBase):
         if self.isDisabled():
             if self.last_mode is not self.Mode.kDisabled:
                 LiveWindow.setEnabled(False)
-                self.disabledInit(self.loop, self.events)
+                self.disabledInit(self.loop, self._interrupted)
                 self.last_mode = self.Mode.kDisabled
             hal.observeUserProgramDisabled()
             self.disabledPeriodic()
         elif self.isAutonomous():
             if self.last_mode is not self.Mode.kAutonomous:
                 LiveWindow.setEnabled(False)
-                self.autonomousInit(self.loop, self.events)
+                self.autonomousInit(self.loop, self._interrupted)
                 self.last_mode = self.Mode.kAutonomous
             hal.observeUserProgramAutonomous()
             self.autonomousPeriodic()
         elif self.isOperatorControl():
             if self.last_mode is not self.Mode.kTeleop:
                 LiveWindow.setEnabled(False)
-                self.teleopInit(self.loop, self.events)
+                self.teleopInit(self.loop, self._interrupted)
                 self.last_mode = self.Mode.kTeleop
             hal.observeUserProgramTeleop()
             self.teleopPeriodic()
         else:
             if self.last_mode is not self.Mode.kTest:
                 LiveWindow.setEnabled(True)
-                self.testInit(self.loop, self.events)
+                self.testInit(self.loop, self._interrupted)
                 self.last_mode = self.Mode.kTest
             hal.observeUserProgramTest()
             self.testPeriodic()
