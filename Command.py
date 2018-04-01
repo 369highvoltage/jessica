@@ -1,36 +1,43 @@
-class Command():
-    def __init__(self, events):
-        self._spin = events["spin"]
-        self._switch = events["switch_mode"]
-        self._interrupted = events["interrupted"]
+from typing import Callable
+
+
+class Command:
+    def __init__(self):
         self._done = False
+        self._first = True
 
-    def is_done(self) -> bool:
-        """Called externally from robot.py"""
-        return self._done
-
-    def _callback(self) -> None:
-        print("Default execute() function - Overload me!")
-
-    def _end(self) -> None:
-        print("Default end() function - Overload me!")
-
-    def _is_finished(self) -> bool:
-        """Called internally by execute()"""
-        print("Default is_finished() function - Overload me!")
-    
-    def _is_interrupted(self) -> bool:
-        return self._interrupted.is_set()
-
-    def start(self) -> None:
-        # Setup objects here.
-        print("Default start() function - Overload me!")
-
+    def run(self) -> None:
+        if self._first:
+            self.on_start()
+            self._first = False
+        if self._done:
+            self.on_end()
+            return
         self.execute()
 
+    def is_done(self) -> bool:
+        return self._done
+
+    def finished(self) -> None:
+        self._done = True
+
+    # These methods should be implemented by command creator
+
+    def on_start(self) -> None:
+        print("Default on_start() function - Overload me!")
+
+    def on_end(self) -> None:
+        print("Default on_ond() function - Overload me!")
+
     def execute(self) -> None:
-        if self._is_finished() or self._is_interrupted():
-            self._done = True
-            self._end()
-        else:
-            self._callback()
+        print("Default execute() function - Overload me!")
+
+
+class InstantCommand(Command):
+    def __init__(self, method: Callable):
+        super().__init__()
+        self._instant_method = method
+
+    def on_start(self):
+        self._instant_method()
+        self.finished()

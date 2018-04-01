@@ -9,14 +9,17 @@
 import asyncio
 import hal
 
-from .iterativerobotbase import IterativeRobotBase
-from .notifier import Notifier
-from .resource import Resource
-from .robotcontroller import RobotController
-from .timer import Timer
-
+from wpilib.livewindow import LiveWindow
+from wpilib.smartdashboard import SmartDashboard
+from wpilib.iterativerobotbase import IterativeRobotBase
+from wpilib.notifier import Notifier
+from wpilib.resource import Resource
+from wpilib.robotcontroller import RobotController
+from wpilib.timer import Timer
+from Command import Command
 
 __all__ = ["AsyncRobot"]
+
 
 class AsyncRobot(IterativeRobotBase):
     """AsyncRobot implements the IterativeRobotBase robot program framework.
@@ -34,39 +37,41 @@ class AsyncRobot(IterativeRobotBase):
         super().__init__()
         hal.report(hal.UsageReporting.kResourceType_Framework, hal.UsageReporting.kFramework_Iterative)
 
-        self.period = TimedRobot.DEFAULT_PERIOD
+        self.period = AsyncRobot.DEFAULT_PERIOD
         # Prevents loop from starting if user calls setPeriod() in robotInit()
         self.startLoop = False
-        
+
         self._expirationTime = 0
         self._loop = asyncio.get_event_loop()
         self._interrupted = asyncio.Event()
-        
+
         self._notifier = hal.initializeNotifier()
-        
+
+        self._active_commands = []
+
         Resource._add_global_resource(self)
-    
+
     # python-specific
 
     def free(self) -> None:
         hal.stopNotifier(self._notifier)
         hal.cleanNotifier(self._notifier)
-        self.loop.stop()
-        self.loop.close()
+        self._loop.stop()
+        self._loop.close()
 
     def startCompetition(self) -> None:
         """Provide an alternate "main loop" via startCompetition()"""
-        self.robotInit(self.loop, self._interrupted)
+        self.robotInit(self._loop, self._interrupted)
 
         hal.observeUserProgramStarting()
 
         self.startLoop = True
-        
+
         self._expirationTime = RobotController.getFPGATime() * 1e-6 + self.period
         self._updateAlarm()
 
         # Loop forever, calling the appropriate mode-dependent function
-        self.loop.run_until_complete(self._pollTimer(self.loop))
+        self._loop.run_until_complete(self._pollTimer(self._loop))
 
     def setPeriod(self, period: float) -> None:
         """Set time period between calls to Periodic() functions.
@@ -81,59 +86,80 @@ class AsyncRobot(IterativeRobotBase):
 
     def getEventLoop(self):
         """Use this function to access the event loop in robot.py"""
-        return self.loop
-    
+        return self._loop
+
     def getPeriod(self):
         """Get time period between calls to Periodic() functions."""
         return self.period
-        
-    async def _pollTimer(loop):
+
+    async def _pollTimer(self, loop):
         while True:
-        """Coroutine. Polls the hardware FPGA Timer"""
+            """Coroutine. Polls the hardware FPGA Timer"""
             # If event flag is set:
             if not hal.waitForNotifierAlarm(self._notifier) == 0:
                 # Run loopFunc()
-                self.loop.call_soon(self.loopFunc)
+                self._loop.call_soon(self.loopFunc)
                 self._expirationTime += self.period
                 self._updateAlarm()
 
             # Poll more often than the Notifier updates.
             await asyncio.sleep(self.period/2)
-    
+
     def _updateAlarm(self) -> None:
         hal.updateNotifierAlarm(self._notifier, int(self._expirationTime * 1e6))
-    
+
+    def _run_commands(self):
+        for command in self._active_commands:
+            # check if the command is done, if so then remove it from queue
+            if command.is_done():
+                self._active_commands.remove(command)
+                continue
+            # command.run()
+            self._loop.call_soon(command.run)
+
+    def _flush_commands(self):
+        # self._loop.
+        self._active_commands.clear()
+
+    def run_command(self, command: Command):
+        self._active_commands.append(command)
+
     # Overriden function from IterativeRobotBase
     def loopFunc(self):
         """This version of loopFunc passes the event loop to all init() and periodic() functions."""
         if self.isDisabled():
             if self.last_mode is not self.Mode.kDisabled:
                 LiveWindow.setEnabled(False)
-                self.disabledInit(self.loop, self._interrupted)
+                self._flush_commands()
+                self.disabledInit(self._loop, self._interrupted)
                 self.last_mode = self.Mode.kDisabled
             hal.observeUserProgramDisabled()
             self.disabledPeriodic()
         elif self.isAutonomous():
             if self.last_mode is not self.Mode.kAutonomous:
                 LiveWindow.setEnabled(False)
-                self.autonomousInit(self.loop, self._interrupted)
+                self._flush_commands()
+                self.autonomousInit(self._loop, self._interrupted)
                 self.last_mode = self.Mode.kAutonomous
             hal.observeUserProgramAutonomous()
             self.autonomousPeriodic()
         elif self.isOperatorControl():
             if self.last_mode is not self.Mode.kTeleop:
                 LiveWindow.setEnabled(False)
-                self.teleopInit(self.loop, self._interrupted)
+                self._flush_commands()
+                self.teleopInit(self._loop, self._interrupted)
                 self.last_mode = self.Mode.kTeleop
             hal.observeUserProgramTeleop()
             self.teleopPeriodic()
         else:
             if self.last_mode is not self.Mode.kTest:
                 LiveWindow.setEnabled(True)
+                self._flush_commands()
                 self.testInit(self.loop, self._interrupted)
                 self.last_mode = self.Mode.kTest
             hal.observeUserProgramTest()
             self.testPeriodic()
         self.robotPeriodic()
+        self._run_commands()
         SmartDashboard.updateValues()
         LiveWindow.updateValues()
