@@ -20,23 +20,35 @@ class CommandGroup(Command):
         return self
 
     def execute(self) -> None:
-        # get current command and remove current if it is done
-        cur_commands = None
         for commands in self._command_list:
-            if len(commands) > 0:
-                cur_commands = commands
-                break
-            self._command_list.remove(commands)
-        # check if there are no more command lists, stop if there are no more
+            for command in commands:
+                command.run()
+                if command.is_done():
+                    commands.remove(command)
+            if len(commands) <= 0:
+                self._command_list.remove(commands)
         if len(self._command_list) <= 0:
             self.finished()
-            return
-        # run all the commands in a command list, remove the ones that are complete
-        for command in cur_commands:
-            if command.is_done():
-                cur_commands.remove(command)
-                continue
-            command.run()
+
+        # # get current command and remove current if it is done
+        # cur_commands = None
+        # for commands in self._command_list:
+        #     if len(commands) > 0:
+        #         cur_commands = commands
+        #         break
+        #     self._command_list.remove(commands)
+        # # check if there are no more command lists, stop if there are no more
+        # if len(self._command_list) <= 0:
+        #     self.finished()
+        #     return
+        # if cur_commands is None:
+        #     return
+        # # run all the commands in a command list, remove the ones that are complete
+        # for command in cur_commands:
+        #     if command.is_done():
+        #         cur_commands.remove(command)
+        #         continue
+        #     command.run()
 
     def on_end(self):
         pass

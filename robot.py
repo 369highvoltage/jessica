@@ -1,18 +1,4 @@
-from wpilib import \
-    SpeedControllerGroup, \
-    DoubleSolenoid, \
-    ADXRS450_Gyro, \
-    Joystick, \
-    run, \
-    DigitalInput, \
-    AnalogPotentiometer, \
-    Talon, \
-    SmartDashboard, \
-    Victor, \
-    Compressor, \
-    AnalogInput
-from ctre import WPI_TalonSRX
-from wpilib.drive import DifferentialDrive
+from wpilib import run
 from components.driver import Driver, GearMode
 from components.lifter import Lifter, MovementDir
 from utilities import truncate_float, normalize_range
@@ -20,6 +6,9 @@ from components.gripper import Gripper, GripState, GripLiftState
 from AsyncRobot import AsyncRobot
 from CommandGroup import CommandGroup
 from Command import Command, InstantCommand
+import robot_map
+from components.DriverComponent import DriverComponent
+from components.DriverComponent.DriveCommands import DriveByTime, DriveByDistance
 
 
 # example
@@ -54,12 +43,10 @@ def scale_command_group() -> CommandGroup:
 
 
 class Jessica(AsyncRobot):
-    driver: Driver
-    lifter: Lifter
-    gripper: Gripper
 
     def __init__(self):
         super().__init__()
+
     # Create motors and stuff here
     def robotInit(self):
         pass
@@ -68,9 +55,17 @@ class Jessica(AsyncRobot):
         # Insert decision tree logic here.
 
         # run command
-        self.run_command(ScaleCommandGroup())
+        # self.run_command(ScaleCommandGroup())
         # or
-        self.run_command(scale_command_group())
+        # self.run_command(scale_command_group())
+        sequence = CommandGroup()
+        sequence.add_sequential(DriveByDistance(100, 0.25))
+        sequence.add_sequential(InstantCommand(lambda: print("instant driving forward first")))
+        sequence.add_sequential(DriveByDistance(-100, -0.25))
+        sequence.add_sequential(InstantCommand(lambda: print("instant driving back")))
+        sequence.add_sequential(DriveByDistance(100, 0.25))
+        sequence.add_sequential(InstantCommand(lambda: print("instant driving forward second")))
+        self.run_command(sequence)
 
     def autonomousPeriodic(self):
         pass
@@ -80,6 +75,7 @@ class Jessica(AsyncRobot):
     
     def teleopPeriodic(self):
         pass
+
 
 if __name__ == '__main__':
     print("hello world")
