@@ -17,56 +17,65 @@ from components.driver import Driver, GearMode
 from components.lifter import Lifter, MovementDir
 from utilities import truncate_float, normalize_range
 from components.gripper import Gripper, GripState, GripLiftState
+from AsyncRobot import AsyncRobot
+from CommandGroup import CommandGroup
+from Command import Command, InstantCommand
 
-class Jessica(asyncRobot):
+
+# example
+class ScaleCommandGroup(CommandGroup):
+    def on_start(self):
+        # Insert decision tree logic here.
+
+        # create sequence
+        self.add_sequential(InstantCommand(lambda: print("drive forward 220in")))
+        self.add_sequential(InstantCommand(lambda: print("turn 90 degrees")))
+        self.add_parallel([
+            InstantCommand(lambda: print("drive back 12in")),
+            InstantCommand(lambda: print("raise lifter to max_height"))
+        ])
+        self.add_sequential(InstantCommand(lambda: print("shoot")))
+
+
+# or
+def scale_command_group() -> CommandGroup:
+    # Insert decision tree logic here.
+
+    # create sequence
+    sequence = CommandGroup()
+    sequence.add_sequential(InstantCommand(lambda: print("drive forward 220in")))
+    sequence.add_sequential(InstantCommand(lambda: print("turn 90 degrees")))
+    sequence.add_parallel([
+        InstantCommand(lambda: print("drive back 12in")),
+        InstantCommand(lambda: print("raise lifter to max_height"))
+    ])
+    sequence.add_sequential(InstantCommand(lambda: print("shoot")))
+    return sequence
+
+
+class Jessica(AsyncRobot):
     driver: Driver
     lifter: Lifter
     gripper: Gripper
 
     def __init__(self):
         super().__init__()
-        self._active_commands = []
-        self._command_generator = None
-    
-    def add_command(self, command):
-        """Pass anonymous command objects into this function."""
-        self._command_generator = command.get_generator()
-
-    def _next_command(self):
-        self._active_commands.extend(next(self._command_generator))
-
     # Create motors and stuff here
-    def robotInit(self, loop, event):
+    def robotInit(self):
         pass
 
-    def autonomousInit(self, loop, event):
+    def autonomousInit(self):
         # Insert decision tree logic here.
 
-
-        # Subclass CommandGroup and pass in the event object
-        self.add_command(ScaleCommandGroup(event))
-
-        # Load in the first active command.
-        self._next_command()
+        # run command
+        self.run_command(ScaleCommandGroup())
+        # or
+        self.run_command(scale_command_group())
 
     def autonomousPeriodic(self):
-        # Keep commands which have not finished and remove the rest.
-        self._active_commands = list(filter(lambda com: not com.is_done(), self._active_commands))
+        pass
 
-        # If active_commands list is empty, load the next sequence in the CommandGroup.
-        if len(self._active_commands) <= 0:
-            try:
-                self._next_command()
-            
-            # Exception in the case all autonomous commands are done.
-            except StopIteration:
-                return
-        
-        # Schedule commands for execution via the event loop.
-        for command in self._active_commands:
-            loop.call_soon(command.execute)
-
-    def teleopInit(self, loop, event):
+    def teleopInit(self):
         pass
     
     def teleopPeriodic(self):
