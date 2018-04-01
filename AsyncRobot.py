@@ -41,7 +41,7 @@ class AsyncRobot(IterativeRobotBase):
         self._expirationTime = 0
         self._loop = asyncio.get_event_loop()
         self._interrupted = asyncio.Event()
-
+        
         self._notifier = hal.initializeNotifier()
         
         Resource._add_global_resource(self)

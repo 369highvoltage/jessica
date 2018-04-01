@@ -26,6 +26,14 @@ class Jessica(asyncRobot):
     def __init__(self):
         super().__init__()
         self._active_commands = []
+        self._command_generator = None
+    
+    def add_command(self, command):
+        """Pass anonymous command objects into this function."""
+        self._command_generator = command.get_generator()
+
+    def _next_command(self):
+        self._active_commands.extend(next(self._command_generator))
 
     # Create motors and stuff here
     def robotInit(self, loop, event):
@@ -35,11 +43,11 @@ class Jessica(asyncRobot):
         # Insert decision tree logic here.
 
 
-        # Subclass CommandGroup and pass in the event objects
-        self.auto_commands = ScaleCommandGroup(event)
+        # Subclass CommandGroup and pass in the event object
+        self.add_command(ScaleCommandGroup(event))
 
         # Load in the first active command.
-        self._active_commands.extend(self.auto_commands.next())
+        self._next_command()
 
     def autonomousPeriodic(self):
         # Keep commands which have not finished and remove the rest.
@@ -48,7 +56,7 @@ class Jessica(asyncRobot):
         # If active_commands list is empty, load the next sequence in the CommandGroup.
         if len(self._active_commands) <= 0:
             try:
-                self._active_commands.append(self.auto_commands.next())
+                self._next_command()
             
             # Exception in the case all autonomous commands are done.
             except StopIteration:
