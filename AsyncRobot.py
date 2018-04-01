@@ -61,7 +61,7 @@ class AsyncRobot(IterativeRobotBase):
 
     def startCompetition(self) -> None:
         """Provide an alternate "main loop" via startCompetition()"""
-        self.robotInit(self._loop, self._interrupted)
+        self.robotInit()
 
         hal.observeUserProgramStarting()
 
@@ -131,7 +131,7 @@ class AsyncRobot(IterativeRobotBase):
             if self.last_mode is not self.Mode.kDisabled:
                 LiveWindow.setEnabled(False)
                 self._flush_commands()
-                self.disabledInit(self._loop, self._interrupted)
+                self.disabledInit()
                 self.last_mode = self.Mode.kDisabled
             hal.observeUserProgramDisabled()
             self.disabledPeriodic()
@@ -139,7 +139,7 @@ class AsyncRobot(IterativeRobotBase):
             if self.last_mode is not self.Mode.kAutonomous:
                 LiveWindow.setEnabled(False)
                 self._flush_commands()
-                self.autonomousInit(self._loop, self._interrupted)
+                self.autonomousInit()
                 self.last_mode = self.Mode.kAutonomous
             hal.observeUserProgramAutonomous()
             self.autonomousPeriodic()
@@ -147,7 +147,7 @@ class AsyncRobot(IterativeRobotBase):
             if self.last_mode is not self.Mode.kTeleop:
                 LiveWindow.setEnabled(False)
                 self._flush_commands()
-                self.teleopInit(self._loop, self._interrupted)
+                self.teleopInit()
                 self.last_mode = self.Mode.kTeleop
             hal.observeUserProgramTeleop()
             self.teleopPeriodic()
@@ -155,7 +155,7 @@ class AsyncRobot(IterativeRobotBase):
             if self.last_mode is not self.Mode.kTest:
                 LiveWindow.setEnabled(True)
                 self._flush_commands()
-                self.testInit(self.loop, self._interrupted)
+                self.testInit()
                 self.last_mode = self.Mode.kTest
             hal.observeUserProgramTest()
             self.testPeriodic()

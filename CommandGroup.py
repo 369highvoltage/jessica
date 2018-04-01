@@ -37,3 +37,9 @@ class CommandGroup(Command):
                 cur_commands.remove(command)
                 continue
             command.run()
+
+    def on_end(self):
+        pass
+
+    def on_start(self):
+        pass

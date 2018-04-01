@@ -27,7 +27,7 @@ class Command:
         print("Default on_start() function - Overload me!")
 
     def on_end(self) -> None:
-        print("Default on_ond() function - Overload me!")
+        print("Default on_end() function - Overload me!")
 
     def execute(self) -> None:
         print("Default execute() function - Overload me!")
@@ -41,3 +41,9 @@ class InstantCommand(Command):
     def on_start(self):
         self._instant_method()
         self.finished()
+
+    def on_end(self):
+        pass
+
+    def execute(self):
+        pass

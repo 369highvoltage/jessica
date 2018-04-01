@@ -24,9 +24,9 @@ from Command import Command, InstantCommand
 
 # example
 class ScaleCommandGroup(CommandGroup):
-    def start(self):
+    def on_start(self):
         # Insert decision tree logic here.
-        
+
         # create sequence
         self.add_sequential(InstantCommand(lambda: print("drive forward 220in")))
         self.add_sequential(InstantCommand(lambda: print("turn 90 degrees")))
@@ -50,7 +50,7 @@ def scale_command_group() -> CommandGroup:
         InstantCommand(lambda: print("raise lifter to max_height"))
     ])
     sequence.add_sequential(InstantCommand(lambda: print("shoot")))
-    return CommandGroup
+    return sequence
 
 
 class Jessica(AsyncRobot):
@@ -61,10 +61,10 @@ class Jessica(AsyncRobot):
     def __init__(self):
         super().__init__()
     # Create motors and stuff here
-    def robotInit(self, loop, event):
+    def robotInit(self):
         pass
 
-    def autonomousInit(self, loop, event):
+    def autonomousInit(self):
         # Insert decision tree logic here.
 
         # run command
@@ -72,10 +72,10 @@ class Jessica(AsyncRobot):
         # or
         self.run_command(scale_command_group())
 
-    def autonomousPeriodic(self, loop):
+    def autonomousPeriodic(self):
         pass
 
-    def teleopInit(self, loop, event):
+    def teleopInit(self):
         pass
     
     def teleopPeriodic(self):
