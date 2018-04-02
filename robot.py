@@ -1,4 +1,4 @@
-from wpilib import run
+from wpilib import run, Joystick
 from components.driver import Driver, GearMode
 from components.lifter import Lifter, MovementDir
 from utilities import truncate_float, normalize_range
@@ -8,7 +8,8 @@ from CommandGroup import CommandGroup
 from Command import Command, InstantCommand
 import robot_map
 from components.DriverComponent import DriverComponent
-from components.DriverComponent.DriveCommands import DriveByTime, DriveByDistance
+from components.DriverComponent.DriveCommands import DriveByTime, DriveByDistance, Turn, curve_drive
+from components.LifterComponent.LifterCommands import move_lifter
 
 
 # example
@@ -49,7 +50,7 @@ class Jessica(AsyncRobot):
 
     # Create motors and stuff here
     def robotInit(self):
-        pass
+        self.joystick = Joystick(1)
 
     def autonomousInit(self):
         # Insert decision tree logic here.
@@ -59,12 +60,19 @@ class Jessica(AsyncRobot):
         # or
         # self.run_command(scale_command_group())
         sequence = CommandGroup()
-        sequence.add_sequential(DriveByDistance(100, 0.25))
-        sequence.add_sequential(InstantCommand(lambda: print("instant driving forward first")))
-        sequence.add_sequential(DriveByDistance(-100, -0.25))
-        sequence.add_sequential(InstantCommand(lambda: print("instant driving back")))
-        sequence.add_sequential(DriveByDistance(100, 0.25))
-        sequence.add_sequential(InstantCommand(lambda: print("instant driving forward second")))
+        sequence.add_sequential(DriveByDistance(324, 0.25))
+        sequence.add_sequential(Turn(90, 0.5))
+        # sequence.add_sequential(InstantCommand(lambda: print("instant driving forward first")))
+        sequence.add_sequential(DriveByDistance(-36, -0.25))
+        # sequence.add_sequential(InstantCommand(lambda: print("instant driving back")))
+        sequence.add_sequential(DriveByDistance(48, 0.25))
+        # sequence.add_sequential(InstantCommand(lambda: print("instant driving forward second")))
+        # sequence.add_sequential(DriveByTime(4, 0.25))
+        # sequence.add_sequential(InstantCommand(lambda: print("instant driving forward first")))
+        # sequence.add_sequential(DriveByTime(4, -0.25))
+        # sequence.add_sequential(InstantCommand(lambda: print("instant driving back")))
+        # sequence.add_sequential(DriveByTime(4, 0.25))
+        # sequence.add_sequential(InstantCommand(lambda: print("instant driving forward second")))
         self.run_command(sequence)
 
     def autonomousPeriodic(self):
@@ -74,7 +82,15 @@ class Jessica(AsyncRobot):
         pass
     
     def teleopPeriodic(self):
-        pass
+        # if self.joystick.getRawButtonPressed(1):
+        left_y = -self.joystick.getRawAxis(1)
+        right_x = self.joystick.getRawAxis(2)
+        self.run_command(curve_drive(left_y, right_x))
+
+        l2 = -normalize_range(self.joystick.getRawAxis(3), -1, 1, 0, 1)
+        r2 = normalize_range(self.joystick.getRawAxis(4), -1, 1, 0, 1)
+        speed = r2 + l2
+        self.run_command(move_lifter(speed))
 
 
 if __name__ == '__main__':

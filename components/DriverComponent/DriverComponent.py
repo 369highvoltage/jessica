@@ -38,8 +38,14 @@ class DriverComponent:
             left,
             right)
 
+        # setup encoders
+        self.left_encoder_motor.setSensorPhase(True)
+
     def set_curve(self, linear, angular):
-        self.drive_train.curvatureDrive(linear, angular, False)
+        if -0.1 < linear < 0.1:
+            self.drive_train.curvatureDrive(linear, angular, True)
+        else:
+            self.drive_train.curvatureDrive(linear, angular, False)
 
     def reset_drive_sensors(self):
         self.driver_gyro.reset()

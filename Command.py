@@ -5,13 +5,15 @@ class Command:
     def __init__(self):
         self._done = False
         self._first = True
+        self._ending = False
 
     def run(self) -> None:
         if self._first:
             self.on_start()
             self._first = False
-        if self._done:
+        if self._ending:
             self.on_end()
+            self._done = True
             return
         self.execute()
 
@@ -19,7 +21,7 @@ class Command:
         return self._done
 
     def finished(self) -> None:
-        self._done = True
+        self._ending = True
 
     # These methods should be implemented by command creator
 
