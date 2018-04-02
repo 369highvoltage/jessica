@@ -21,14 +21,20 @@ class CommandGroup(Command):
 
     def execute(self) -> None:
         for commands in self._command_list:
-            for command in commands:
-                command.run()
-                if command.is_done():
-                    commands.remove(command)
             if len(commands) <= 0:
                 self._command_list.remove(commands)
+
         if len(self._command_list) <= 0:
             self.finished()
+            return
+
+        commands = self._command_list[0]
+
+        for command in commands:
+            command.run()
+            if command.is_done():
+                commands.remove(command)
+
 
         # # get current command and remove current if it is done
         # cur_commands = None
