@@ -77,7 +77,7 @@ class Auto(AutonomousStateMachine):
         if not self.driving:
             self.driver.reset_drive_sensors()
         self.driving = True
-        self.driver.set_curve(self.__current_state ["linear"], -self.driver.current_angle*0.3)
+        self.driver.set_curve(self.__current_state ["linear"], -self.driver.current_angle*0.2)
 
         set_dist = self.__current_state ["displacement"]
         if abs(self.driver.current_distance) >= abs(set_dist):

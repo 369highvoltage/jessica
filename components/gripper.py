@@ -33,7 +33,7 @@ class Gripper:
 
     TOP_VAL = 0.5
     BOTTOM_VAL = 0.8
-    SPEED = 0.25
+    SPEED = 0.5
 
     def __init__(self):
         self.open_state = None
@@ -82,7 +82,7 @@ class Gripper:
         elif self.grip_position is GripPosition.BOTTOM:
             self.set_position_top()
         else:
-            self.set_position_bottom()
+            self.set_position_top()
 
     def execute(self):
         if self.grip_state is GripState.STOP:
@@ -105,8 +105,8 @@ class Gripper:
             else:
                 self.claw_lift_motor.set(Gripper.SPEED)
         elif self.lift_state is GripLiftState.DOWN:
-            # if self.claw_pot.get() >= Gripper.BOTTOM_VAL:
-            if self.grip_timer.hasPeriodPassed(1.25):
+            if self.claw_pot.get() >= Gripper.BOTTOM_VAL:
+            # if self.grip_timer.hasPeriodPassed(0.4):
                 self.claw_lift_motor.set(0)
                 self.lift_state = GripLiftState.STOP
                 self.grip_position = GripPosition.BOTTOM

@@ -39,13 +39,14 @@ class SwitchScale(Auto):
 
         if self.start_location != 2:
             if scale:
+                practice_distance_to_scale = 220
                 self.states = [
                     {"state": "lift", "position": "floor"},
-                    {"state": "move", "linear": 0.25, "displacement": 60},
+                    {"state": "move", "linear": 0.50, "displacement": practice_distance_to_scale},
                     # {"state": "move", "linear": 0.25, "displacement": 324},
                     {"state": "turn", "linear": 0.0, "angular": angle / (abs(angle) * 2), "angle": angle},
-                    {"state": "move", "linear": -0.25, "displacement": -100},
-                    {"state": "lift", "position": "scale_high"},
+                    {"state": "move", "linear": -0.50, "displacement": -36},
+                    {"state": "lift", "position": "max_height"},
                     {"state": "shoot"},
                     {"state": "stop_shooting"},
                     # {"state": "turn", "linear": 0.0, "angular": angle / (-abs(angle) * 2), "angle": 0.0},

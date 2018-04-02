@@ -34,7 +34,10 @@ class Driver:
     # LOW_GEAR_RATIO = 0.0102
     # HIGH_GEAR_RATIO = 0.0221
     # CONV_RATIO = 0.0186
-    CONV_RATIO = 0.0419
+    # CONV_RATIO = 0.0419
+    # CONV_RATIO = 0.0392
+    # CONV_RATIO = 0.0131
+    CONV_RATIO = 0.0524
     MAX_SPEED = 1
     MIN_SPEED = -1
     dist_kP = tunable(0.04, doc="driver distance P pid value")
@@ -98,12 +101,14 @@ class Driver:
 
     # encoder
     def reset_drive_sensors(self):
+        self.reset_gyro()
         self.left_encoder_motor.setSelectedSensorPosition(0, 0, 0)
         self.right_encoder_motor.setSelectedSensorPosition(0, 0, 0)
 
     @property
     def current_distance(self):
-        average_position = (self.left_encoder_motor.getSelectedSensorPosition(0) + self.right_encoder_motor.getSelectedSensorPosition(0)) / 2
+        # average_position = (self.left_encoder_motor.getSelectedSensorPosition(0) + self.right_encoder_motor.getSelectedSensorPosition(0)) / 2
+        average_position = self.left_encoder_motor.getSelectedSensorPosition(0)
         return Driver.CONV_RATIO * average_position
 
     # calculations based on velocity

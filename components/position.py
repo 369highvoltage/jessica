@@ -5,7 +5,9 @@ class Position:
     
     # Max heights of each stage.
     ELEVATOR_MAX_HEIGHT = 40
-    CARRIAGE_MAX_HEIGHT = 37
+    # ELEVATOR_MAX_HEIGHT = 50
+    # CARRIAGE_MAX_HEIGHT = 37
+    CARRIAGE_MAX_HEIGHT = 42
 
     # Conversion factors (counts to inches)
     # CHANGE THESE VALUES
@@ -19,7 +21,8 @@ class Position:
             { "name": "portal", "distance": 34.0 },
             { "name": "scale_low", "distance": 48.0 },
             { "name": "scale_mid", "distance": 60.0 },
-            { "name": "scale_high", "distance": 72.0 }
+            { "name": "scale_high", "distance": 72.0 },
+            {"name": "max_height", "distance": 84.0}
         )
         
         self.index = 0

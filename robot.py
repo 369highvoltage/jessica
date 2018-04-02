@@ -75,7 +75,7 @@ class Jessica(magicbot.MagicRobot):
     def teleopInit(self):
         self.driver.set_gear(GearMode.LOW)
         self.curve = True
-        self.gripper.set_position_bottom()
+        # self.gripper.set_position_bottom()
         # self.compressor.stop()
         self.p2_pressed_map = {}
         self.p2_pressed_map[0] = {"on": False, "pressed": False}
@@ -131,7 +131,8 @@ class Jessica(magicbot.MagicRobot):
         # else:
         #     self.lifter.move_carriage(b_speed)
         #     self.lifter.move_elevator(0)
-
+        if self.controller.getRawButtonPressed(6):
+            self.driver.reset_drive_sensors()
         SmartDashboard.putNumber("controller/direction", self.controller.getDirectionDegrees())
         SmartDashboard.putNumber("controller/pov", self.controller.getPOV())
 
