@@ -121,7 +121,7 @@ class AsyncRobot(IterativeRobotBase):
         # self._loop.
         self._active_commands.clear()
 
-    def run_command(self, command: Command):
+    def start_command(self, command: Command):
         self._active_commands.append(command)
 
     # Overriden function from IterativeRobotBase
