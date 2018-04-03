@@ -29,10 +29,11 @@ class Jessica(magicbot.MagicRobot):
     def createObjects(self):
         # driver component setup
         # left_front = WPI_TalonSRX(2)
-        left_front = Talon(3)
+        left_front = Victor(3)
         left_rear = WPI_TalonSRX(1)
         right_front = WPI_TalonSRX(4)
-        right_rear = WPI_TalonSRX(3)
+        # right_rear = WPI_TalonSRX(3)
+        right_rear = Victor(6)
         left = SpeedControllerGroup(left_front, left_rear)
         right = SpeedControllerGroup(right_front, right_rear)
 
@@ -50,7 +51,8 @@ class Jessica(magicbot.MagicRobot):
         self.elevator_bottom_switch = DigitalInput(9)
 
         # self.carriage_motor = WPI_TalonSRX(6)
-        self.carriage_motor = WPI_TalonSRX(2)
+        # self.carriage_motor = WPI_TalonSRX(2)
+        self.carriage_motor = WPI_TalonSRX(3)
         self.carriage_bottom_switch = DigitalInput(1) # was 2
         self.carriage_top_switch = DigitalInput(2) # was 1
 
