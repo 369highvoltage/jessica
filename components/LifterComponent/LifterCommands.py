@@ -11,38 +11,45 @@ def move_lifter(speed: float) -> InstantCommand:
 
 
 class MoveToPosition(Command):
-    positions = {
-        "floor": 2.0,
-        "portal": 34.0,
-        "scale_low": 48.0,
-        "scale_mid": 60.0,
-        "scale_high": 72.0,
-        "max_height": 84.0
-    }
-
     def __init__(self, position: str):
         super().__init__()
-        self._target_position = position
-        self._target_distance = None
-        self._carriage = None
-        self._elevator = None
+        self._target_position = LifterComponent.positions[position]
 
     def on_start(self):
-        self._target_distance = MoveToPosition.positions[self._target_position]
-
-        # Carriage cannot go farther than 30 inches. Restrict carriage travel.
-        carriage = min(self._target_distance * LifterComponent.CARRIAGE_MULTIPLIER, LifterComponent.CARRIAGE_MAX_HEIGHT)
-        # Elevator moves the remainder of distance.
-        elevator = self._target_distance - carriage
-
-        self._carriage = carriage / LifterComponent.CARRIAGE_CONV_FACTOR
-        self._elevator = elevator / LifterComponent.ELEVATOR_CONV_FACTOR
+        pass
 
     def execute(self):
-        RobotMap.lifter_component.elevator_to_target_position(self._carriage)
-        RobotMap.lifter_component.carriage_to_target_position(self._elevator)
-        if RobotMap.lifter_component.is_at_position(self._target_distance):
+        RobotMap.lifter_component.lift_to_distance(self._target_position)
+        if RobotMap.lifter_component.is_at_distance(self._target_position):
             self.finished()
 
     def on_end(self):
         pass
+
+
+class MoveUp(Command):
+    def __init__(self):
+        super().__init__()
+        self._target_position = None
+
+    def on_start(self):
+        self._target_position = LifterComponent.positions[RobotMap.lifter_component.next_position()]
+
+    def execute(self):
+        RobotMap.lifter_component.lift_to_distance(self._target_position)
+        if RobotMap.lifter_component.is_at_distance(self._target_position):
+            self.finished()
+
+
+class MoveDown(Command):
+    def __init__(self):
+        super().__init__()
+        self._target_position = None
+
+    def on_start(self):
+        self._target_position = LifterComponent.positions[RobotMap.lifter_component.prev_position()]
+
+    def execute(self):
+        RobotMap.lifter_component.lift_to_distance(self._target_position)
+        if RobotMap.lifter_component.is_at_distance(self._target_position):
+            self.finished()
