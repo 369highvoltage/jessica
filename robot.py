@@ -10,6 +10,7 @@ import robot_map
 from components.DriverComponent import DriverComponent
 from components.DriverComponent.DriveCommands import DriveByTime, DriveByDistance, Turn, curve_drive
 from components.LifterComponent.LifterCommands import move_lifter
+from components.GripperComponent.GripperCommands import move_left_right, toggle_spread
 
 
 # example
@@ -62,17 +63,8 @@ class Jessica(AsyncRobot):
         sequence = CommandGroup()
         sequence.add_sequential(DriveByDistance(324, 0.25))
         sequence.add_sequential(Turn(90, 0.5))
-        # sequence.add_sequential(InstantCommand(lambda: print("instant driving forward first")))
         sequence.add_sequential(DriveByDistance(-36, -0.25))
-        # sequence.add_sequential(InstantCommand(lambda: print("instant driving back")))
         sequence.add_sequential(DriveByDistance(48, 0.25))
-        # sequence.add_sequential(InstantCommand(lambda: print("instant driving forward second")))
-        # sequence.add_sequential(DriveByTime(4, 0.25))
-        # sequence.add_sequential(InstantCommand(lambda: print("instant driving forward first")))
-        # sequence.add_sequential(DriveByTime(4, -0.25))
-        # sequence.add_sequential(InstantCommand(lambda: print("instant driving back")))
-        # sequence.add_sequential(DriveByTime(4, 0.25))
-        # sequence.add_sequential(InstantCommand(lambda: print("instant driving forward second")))
         self.run_command(sequence)
 
     def autonomousPeriodic(self):
@@ -91,6 +83,20 @@ class Jessica(AsyncRobot):
         r2 = normalize_range(self.joystick.getRawAxis(4), -1, 1, 0, 1)
         speed = r2 + l2
         self.run_command(move_lifter(speed))
+
+        l1 = 5
+        r1 = 6
+        g_speed = 0.0
+        if self.joystick.getRawButton(l1):
+            g_speed += 1.0
+        if self.joystick.getRawButton(r1):
+            g_speed -= 1.0
+
+        self.run_command(move_left_right(g_speed))
+
+        triangle = 4
+        if self.joystick.getRawButtonPressed(triangle):
+            self.run_command(toggle_spread())
 
 
 if __name__ == '__main__':

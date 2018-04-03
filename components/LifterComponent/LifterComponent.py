@@ -21,7 +21,7 @@ class LifterComponent:
 
     # Max heights of each stage.
     ELEVATOR_MAX_HEIGHT = 40
-    CARRIAGE_MAX_HEIGHT = 37
+    CARRIAGE_MAX_HEIGHT = 42
 
     # Conversion factors (counts to inches)
     # CHANGE THESE VALUES
@@ -44,6 +44,15 @@ class LifterComponent:
 
     ALLOWABLE_ERROR = 2
 
+    positions = {
+        "floor": 2.0,
+        "portal": 34.0,
+        "scale_low": 48.0,
+        "scale_mid": 60.0,
+        "scale_high": 72.0,
+        "max_height": 84.0
+    }
+
     def __init__(self):
         self.elevator_motor = WPI_TalonSRX(5)
         self.elevator_bottom_switch = DigitalInput(9)
@@ -51,6 +60,8 @@ class LifterComponent:
         self.carriage_motor = WPI_TalonSRX(2)
         self.carriage_bottom_switch = DigitalInput(1)
         self.carriage_top_switch = DigitalInput(2)
+
+        self._current_position = None
 
         # configure elevator motor and encoder
 
@@ -130,11 +141,42 @@ class LifterComponent:
     def current_position(self) -> float:
         return self.current_elevator_position + self.current_carriage_position
 
-    def elevator_to_target_position(self, position: float):
-        self.elevator_motor.set(WPI_TalonSRX.ControlMode.Position, position)
+    def elevator_to_target_position(self, inches: float):
+        self.elevator_motor.set(WPI_TalonSRX.ControlMode.Position, inches / LifterComponent.ELEVATOR_CONV_FACTOR)
 
-    def carriage_to_target_position(self, position: float):
-        self.carriage_motor.set(WPI_TalonSRX.ControlMode.Position, position)
+    def carriage_to_target_position(self, inches: float):
+        self.carriage_motor.set(WPI_TalonSRX.ControlMode.Position, inches / LifterComponent.CARRIAGE_CONV_FACTOR)
 
-    def is_at_position(self, position: float) -> bool:
-        return position - 5 < self.current_position < position + 5
+    def lift_to_distance(self, inches):
+        carriage = min(inches * LifterComponent.CARRIAGE_MULTIPLIER, LifterComponent.CARRIAGE_MAX_HEIGHT)
+        elevator = inches - carriage
+
+        self.elevator_to_target_position(elevator)
+        self.carriage_to_target_position(carriage)
+
+    def is_at_position(self, position: str) -> bool:
+        return self.is_at_distance(LifterComponent.positions[position])
+
+    def is_at_distance(self, inches: float) -> bool:
+        return inches - 5 < self.current_position < inches + 5
+
+    def closest_position(self) -> tuple:
+        # returns the key for the position closest to the current position
+        positions = [(key, position) for key, position in LifterComponent.positions.items()]
+        return min(positions, key=lambda position: abs(self.current_position-position[1]))
+
+    def next_position(self) -> str:
+        position = self.closest_position()
+        positions = [(key, position) for key, position in LifterComponent.positions.items()]
+        index = positions.index(position)
+        if index == len(positions) - 1:
+            return position[0]
+        return positions[index + 1][0]
+
+    def prev_position(self) -> str:
+        position = self.closest_position()
+        positions = [(key, position) for key, position in LifterComponent.positions.items()]
+        index = positions.index(position)
+        if index == 0:
+            return position[0]
+        return positions[index - 1][0]
