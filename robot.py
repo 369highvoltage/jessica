@@ -65,7 +65,8 @@ class Jessica(magicbot.MagicRobot):
         self.claw_pot = AnalogPotentiometer(0)
 
         # climber
-        self.climber_motor = Talon(2)
+        self.climber_motor_1 = Victor(2)
+        self.climber_motor_2 = Victor(5)
 
         # controllers
         self.controller = Joystick(0)
@@ -228,9 +229,11 @@ class Jessica(magicbot.MagicRobot):
             self.gripper.set_grip_state(GripState.STOP)
 
         if self.operator.getRawButton(7):
-            self.climber_motor.set(-1)
+            self.climber_motor_1.set(-1)
+            self.climber_motor_2.set(-1)
         else:
-            self.climber_motor.set(0)
+            self.climber_motor_1.set(0)
+            self.climber_motor_2.set(0)
 
         # if self.controller.getRawButtonPressed(3):
         #     self.lifter.manual_control = not self.lifter.manual_control
@@ -249,6 +252,7 @@ class Jessica(magicbot.MagicRobot):
 
         for b in self.p2_pressed_map.keys():
             self.p2_pressed_map[b]["pressed"] = False
+
 
 if __name__ == '__main__':
     print("hello world")
