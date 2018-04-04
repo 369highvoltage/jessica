@@ -8,11 +8,11 @@ def move_left_right(speed: float) -> InstantCommand:
 
 
 def suck() -> InstantCommand:
-    return InstantCommand(lambda: RobotMap.gripper_component.set_motor_speeds(-1, -1))
+    return InstantCommand(lambda: RobotMap.gripper_component.set_motor_speeds(1, 1))
 
 
 def spit() -> InstantCommand:
-    return InstantCommand(lambda: RobotMap.gripper_component.set_motor_speeds(1, 1))
+    return InstantCommand(lambda: RobotMap.gripper_component.set_motor_speeds(-1, -1))
 
 
 def stop() -> InstantCommand:
@@ -44,15 +44,18 @@ class SpitFast(Command):
 
     def on_start(self):
         self.timer.start()
+        print("started spit")
 
     def execute(self):
         RobotMap.gripper_component.set_motor_speeds(-1, -1)
-        if self.timer.hasPeriodPassed(0.4):
+        if self.timer.hasPeriodPassed(1):
             RobotMap.gripper_component.set_motor_speeds(0, 0)
             self.finished()
 
     def on_end(self):
-        pass
+        self.timer.stop()
+        self.timer.reset()
+        print("ended spit")
 
 
 def spread() -> InstantCommand:

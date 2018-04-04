@@ -42,26 +42,37 @@ class LifterComponent:
     ELEVATOR_kI = 0.0
     ELEVATOR_kD = 0.0
 
-    ALLOWABLE_ERROR = 2
+    # ALLOWABLE_ERROR = 2
+
+    CARRIAGE_ALLOWABLE_ERROR = int(2 / CARRIAGE_CONV_FACTOR)
+    ELEVATOR_ALLOWABLE_ERROR = int(2 / ELEVATOR_CONV_FACTOR)
+
+    # positions = {
+    #     "floor": 2.0,
+    #     "portal": 34.0,
+    #     "scale_low": 48.0,
+    #     "scale_mid": 60.0,
+    #     "scale_high": 72.0,
+    #     "max_height": 84.0
+    # }
 
     positions = {
         "floor": 2.0,
         "portal": 34.0,
-        "scale_low": 48.0,
-        "scale_mid": 60.0,
-        "scale_high": 72.0,
-        "max_height": 84.0
+        "scale_low": 52.0,
+        "scale_mid": 68.0,
+        "scale_high": 76.0
     }
 
     def __init__(self):
         self.elevator_motor = WPI_TalonSRX(5)
         self.elevator_bottom_switch = DigitalInput(9)
 
-        self.carriage_motor = WPI_TalonSRX(2)
+        self.carriage_motor = WPI_TalonSRX(3)
         self.carriage_bottom_switch = DigitalInput(1)
         self.carriage_top_switch = DigitalInput(2)
 
-        self._current_position = None
+        self._is_reset = False
 
         # configure elevator motor and encoder
 
@@ -82,7 +93,7 @@ class LifterComponent:
         self.elevator_motor.configPeakOutputForward(LifterComponent.el_up, LifterComponent.TIMEOUT_MS)
         self.elevator_motor.configPeakOutputReverse(LifterComponent.el_down, LifterComponent.TIMEOUT_MS)
 
-        self.elevator_motor.configAllowableClosedloopError(0, LifterComponent.ALLOWABLE_ERROR, LifterComponent.TIMEOUT_MS)
+        self.elevator_motor.configAllowableClosedloopError(0, LifterComponent.ELEVATOR_ALLOWABLE_ERROR, LifterComponent.TIMEOUT_MS)
 
         self.elevator_motor.config_kF(0, LifterComponent.ELEVATOR_kF, LifterComponent.TIMEOUT_MS)
         self.elevator_motor.config_kP(0, LifterComponent.ELEVATOR_kP, LifterComponent.TIMEOUT_MS)
@@ -108,7 +119,7 @@ class LifterComponent:
         self.carriage_motor.configPeakOutputForward(LifterComponent.el_up, LifterComponent.TIMEOUT_MS)
         self.carriage_motor.configPeakOutputReverse(LifterComponent.el_down, LifterComponent.TIMEOUT_MS)
 
-        self.carriage_motor.configAllowableClosedloopError(0, LifterComponent.ALLOWABLE_ERROR, LifterComponent.TIMEOUT_MS)
+        self.carriage_motor.configAllowableClosedloopError(0, LifterComponent.CARRIAGE_ALLOWABLE_ERROR, LifterComponent.TIMEOUT_MS)
 
         self.carriage_motor.config_kF(0, LifterComponent.ELEVATOR_kF, LifterComponent.TIMEOUT_MS)
         self.carriage_motor.config_kP(0, LifterComponent.ELEVATOR_kP, LifterComponent.TIMEOUT_MS)
@@ -129,6 +140,11 @@ class LifterComponent:
         else:
             self.carriage_motor.set(speed)
 
+    def reset_sensors(self):
+        self.carriage_motor.setSelectedSensorPosition(0, 0, LifterComponent.TIMEOUT_MS)
+        self.elevator_motor.setSelectedSensorPosition(0, 0, LifterComponent.TIMEOUT_MS)
+        self._is_reset = True
+
     @property
     def current_elevator_position(self) -> float:
         return self.elevator_motor.getSelectedSensorPosition(0) * LifterComponent.ELEVATOR_CONV_FACTOR
@@ -142,14 +158,21 @@ class LifterComponent:
         return self.current_elevator_position + self.current_carriage_position
 
     def elevator_to_target_position(self, inches: float):
-        self.elevator_motor.set(WPI_TalonSRX.ControlMode.Position, inches / LifterComponent.ELEVATOR_CONV_FACTOR)
+        if self._is_reset:
+            self.elevator_motor.set(WPI_TalonSRX.ControlMode.Position, inches / LifterComponent.ELEVATOR_CONV_FACTOR)
 
     def carriage_to_target_position(self, inches: float):
-        self.carriage_motor.set(WPI_TalonSRX.ControlMode.Position, inches / LifterComponent.CARRIAGE_CONV_FACTOR)
+        if self._is_reset:
+            self.carriage_motor.set(WPI_TalonSRX.ControlMode.Position, inches / LifterComponent.CARRIAGE_CONV_FACTOR)
 
     def lift_to_distance(self, inches):
-        carriage = min(inches * LifterComponent.CARRIAGE_MULTIPLIER, LifterComponent.CARRIAGE_MAX_HEIGHT)
-        elevator = inches - carriage
+        i = inches + 6
+        carriage = min(i * LifterComponent.CARRIAGE_MULTIPLIER, LifterComponent.CARRIAGE_MAX_HEIGHT)
+        elevator = i - carriage
+
+        print("lift_to_distance carriage" + str(carriage))
+        print("lift_to_distance elevate" + str(elevator))
+        print("lift_to_distance lifter" + str(carriage + elevator))
 
         self.elevator_to_target_position(elevator)
         self.carriage_to_target_position(carriage)

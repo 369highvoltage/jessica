@@ -20,16 +20,17 @@ class CommandGroup(Command):
         return self
 
     def execute(self) -> None:
+        # First check if entire command list is exhausted.
+        if len(self._command_list) <= 0:
+            self.finished()
+            return
         # Filter out finished commands first.
         commands = [commands for commands in self._command_list[0] if not commands.is_done()]
 
-        # First check if entire command list is exhausted.
         # Then check if the current commands are finished.
         # Otherwise run remaining commands.
-        if len(self._command_list <= 0):
-            self.finished()
-            return
-        elif len(commands) <= 0:
+
+        if len(commands) <= 0:
             del self._command_list[0]
         else:
             self._command_list[0] = commands

@@ -18,13 +18,13 @@ from wpilib.timer import Timer
 
 
 class DriverComponent:
-    CONV_FACTOR = 0.0524
+    CONV_FACTOR = 0.0524 * 0.846
 
     def __init__(self):
-        left_front = Talon(3)
+        left_front = Victor(3)
         left_rear = WPI_TalonSRX(1)
         right_front = WPI_TalonSRX(4)
-        right_rear = WPI_TalonSRX(3)
+        right_rear = Victor(6)
 
         left = SpeedControllerGroup(left_front, left_rear)
         right = SpeedControllerGroup(right_front, right_rear)

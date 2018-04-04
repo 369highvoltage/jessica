@@ -11,11 +11,11 @@ class Command:
         if self._first:
             self.on_start()
             self._first = False
-        if self._ending:
+        elif self._ending:
             self.on_end()
             self._done = True
-            return
-        self.execute()
+        else:
+            self.execute()
 
     def is_done(self) -> bool:
         return self._done
