@@ -2,8 +2,9 @@ import queue
 import threading
 import time
 
+
 class FeedbackController():
-    def __init__(self, event, gains, period=0.05, num_samples=8):
+    def __init__(self, event, gains, period, num_samples):
         self._continuous = False
         self._interrupted = event
         self._running = threading.Event()
