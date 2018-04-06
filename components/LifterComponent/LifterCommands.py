@@ -13,10 +13,11 @@ def move_lifter(speed: float) -> InstantCommand:
 class MoveToPosition(Command):
     def __init__(self, position: str):
         super().__init__()
+        self._position = position
         self._target_position = LifterComponent.positions[position]
 
     def on_start(self):
-        print("start move to position command")
+        print("start move to position command "+ self._position)
 
     def execute(self):
         RobotMap.lifter_component.lift_to_distance(self._target_position)
@@ -24,7 +25,7 @@ class MoveToPosition(Command):
             self.finished()
 
     def on_end(self):
-        print("endd move to position command")
+        print("end move to position command")
 
 
 def move_to_position_instant(position: str) -> InstantCommand:

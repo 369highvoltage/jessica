@@ -38,16 +38,17 @@ class SuckFast(Command):
 
 
 class SpitFast(Command):
-    def __init__(self):
+    def __init__(self, speed=1):
         super().__init__()
         self.timer = Timer()
+        self._speed = -speed
 
     def on_start(self):
         self.timer.start()
         print("started spit")
 
     def execute(self):
-        RobotMap.gripper_component.set_motor_speeds(-1, -1)
+        RobotMap.gripper_component.set_motor_speeds(self._speed, self._speed)
         if self.timer.hasPeriodPassed(1):
             RobotMap.gripper_component.set_motor_speeds(0, 0)
             self.finished()

@@ -1,6 +1,8 @@
 from robot_map import RobotMap
 from Command import Command, InstantCommand
 from wpilib.timer import Timer
+from control_system import ControlSystem
+from wpilib.pidcontroller import PIDController
 
 
 def curve_drive(linear: float, angular: float) -> InstantCommand:
@@ -30,44 +32,76 @@ class DriveByTime(Command):
         self.timer.reset()
 
 
+# kP, kI, kD, kF
+linear_gains = (0.02, 0.0, 0.0, 0.0)
+
+
+angular_tolerance = 2
+
+
 class DriveByDistance(Command):
     def __init__(self, inches: float, speed: float):
         super().__init__()
+        angular_gains = (0.02, 0.0001, 0.02, 0.0)
         self._target_distance = inches
         self._speed = speed
+        self._angular = 0
+
+        self.angular_controller = PIDController(*angular_gains, RobotMap.driver_component.driver_gyro, output=self)
+        self.angular_controller.setInputRange(-360, 360)
+        self.angular_controller.setOutputRange(-1, 1)
+        self.angular_controller.setAbsoluteTolerance(0.5)
+
+        self.angular_controller.setSetpoint(0)
+
+    def pidWrite(self, output):
+        self._angular = output
 
     def on_start(self):
         RobotMap.driver_component.reset_drive_sensors()
-        target_dist = "inches: " + str(self._target_distance)
-        speed = "speed: " + str(self._speed)
-        current_dist = "current: " + str(RobotMap.driver_component.current_distance)
-        print("starting drive by distance, " + target_dist + " | " + speed + " | " + current_dist)
+
+        self.angular_controller.enable()
 
     def execute(self):
-        RobotMap.driver_component.set_curve(self._speed, -RobotMap.driver_component.driver_gyro.getAngle()*0.2)
         if abs(RobotMap.driver_component.current_distance) >= abs(self._target_distance):
-            RobotMap.driver_component.set_curve(0, 0)
+            RobotMap.driver_component.drive_train.curvatureDrive(0, 0, False)
             self.finished()
+            return
+
+        RobotMap.driver_component.drive_train.curvatureDrive(self._speed, self._angular, False)
 
     def on_end(self):
-        print("ending drive by distance, inches: " + str(self._target_distance) + " | speed: " + str(self._speed))
+        self.angular_controller.disable()
 
 
 class Turn(Command):
     def __init__(self, degrees: float, speed: float):
         super().__init__()
+        angular_gains = (0.02, 0.0001, 0.02, 0.0)
         self._target_angle = degrees
         self._speed = speed
+        self._angular = 0
+
+        self.angular_controller = PIDController(*angular_gains, RobotMap.driver_component.driver_gyro, output=self)
+        self.angular_controller.setInputRange(-360, 360)
+        self.angular_controller.setOutputRange(-1, 1)
+        self.angular_controller.setAbsoluteTolerance(1)
+
+        self.angular_controller.setSetpoint(degrees)
+
+    def pidWrite(self, output):
+        self._angular = output
 
     def on_start(self):
-        print("started turning")
         RobotMap.driver_component.reset_drive_sensors()
+        self.angular_controller.enable()
 
     def execute(self):
-        RobotMap.driver_component.set_curve(0, self._speed)
-        if abs(RobotMap.driver_component.driver_gyro.getAngle()) >= abs(self._target_angle):
-            RobotMap.driver_component.set_curve(0, 0)
+        if self.angular_controller.onTarget():
+            RobotMap.driver_component.drive_train.curvatureDrive(0, 0, False)
             self.finished()
+            return
+        RobotMap.driver_component.drive_train.curvatureDrive(0, self._angular, True)
 
     def on_end(self):
-        print("ended turning")
+        self.angular_controller.disable()

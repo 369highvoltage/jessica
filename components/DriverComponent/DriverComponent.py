@@ -15,6 +15,7 @@ from ctre import WPI_TalonSRX
 from wpilib.drive import DifferentialDrive
 from Command import InstantCommand, Command
 from wpilib.timer import Timer
+from control_system import ControlSystem
 
 
 class DriverComponent:
@@ -55,6 +56,7 @@ class DriverComponent:
             self.moving_angular.pop(0)
         l_speed = sum([x / DriverComponent.LINEAR_SAMPLE_RATE for x in self.moving_linear])
         a_speed = sum([x / DriverComponent.ANGULAR_SAMPLE_RATE for x in self.moving_angular])
+
         if -0.1 < linear < 0.1:
             self.drive_train.curvatureDrive(l_speed, a_speed, True)
         else:

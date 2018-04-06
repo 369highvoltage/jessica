@@ -21,7 +21,7 @@ class LifterComponent:
 
     # Max heights of each stage.
     ELEVATOR_MAX_HEIGHT = 40
-    CARRIAGE_MAX_HEIGHT = 42
+    CARRIAGE_MAX_HEIGHT = 40
 
     # Conversion factors (counts to inches)
     # CHANGE THESE VALUES
@@ -61,7 +61,7 @@ class LifterComponent:
         "portal": 34.0,
         "scale_low": 52.0,
         "scale_mid": 68.0,
-        "scale_high": 76.0
+        "scale_high": 78.0
     }
 
     def __init__(self):

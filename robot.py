@@ -1,4 +1,4 @@
-from wpilib import run, Joystick, SmartDashboard
+from wpilib import run, Joystick, SmartDashboard, CameraServer
 from components.driver import Driver, GearMode
 from components.lifter import Lifter, MovementDir
 from utilities import truncate_float, normalize_range
@@ -23,6 +23,7 @@ class Jessica(AsyncRobot):
     def robotInit(self):
         self.controller = Joystick(0)
         self.joystick = Joystick(1)
+        CameraServer.launch()
 
     def robotPeriodic(self):
         SmartDashboard.putNumber("driver/current_distance", RobotMap.driver_component.current_distance)
@@ -41,21 +42,25 @@ class Jessica(AsyncRobot):
         game_data = self.ds.getGameSpecificMessage()
         switch_position = game_data[0]
         scale_position = game_data[1]
-        start_position = "L"
+        start_position = "M"
         self.start_command(switch_scale(scale_position, switch_position, start_position))
-
+        # self.start_command(DriveByDistance(168, 0.25))
         # auto = CommandGroup()
         # auto.add_sequential(Reset())
         # auto.add_sequential(MoveToPosition("portal"))
         # auto.add_sequential(SpitFast())
         # self.start_command(auto)
 
+    def disabledInit(self):
+        RobotMap.driver_component.moving_angular.clear()
+        RobotMap.driver_component.moving_linear.clear()
+
     def autonomousPeriodic(self):
         pass
 
     def teleopInit(self):
         self.man_mode = False
-        self.start_command(Reset())
+        # self.start_command(Reset())
     
     def teleopPeriodic(self):
         # if self.joystick.getRawButtonPressed(1):
