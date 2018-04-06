@@ -16,6 +16,13 @@ from wpilib.drive import DifferentialDrive
 from Command import InstantCommand, Command
 from wpilib.timer import Timer
 from control_system import ControlSystem
+from enum import Enum, auto
+
+
+class GearMode:
+    OFF = auto()
+    LOW = auto()
+    HIGH = auto()
 
 
 class DriverComponent:
@@ -70,3 +77,23 @@ class DriverComponent:
     @property
     def current_distance(self):
         return DriverComponent.CONV_FACTOR * self.left_encoder_motor.getSelectedSensorPosition(0)
+
+    def current_gear(self):
+        if self.gear_solenoid.get() is DoubleSolenoid.Value.kForward:
+            return GearMode.HIGH
+        if self.gear_solenoid.get() is DoubleSolenoid.Value.kReverse:
+            return GearMode.HIGH
+        if self.gear_solenoid.get() is DoubleSolenoid.Value.kOff:
+            return GearMode.OFF
+
+    def toggle_gear(self):
+        if self.current_gear() is GearMode.LOW:
+            self.set_high_gear()
+        if self.current_gear() is GearMode.HIGH:
+            self.set_low_gear()
+
+    def set_low_gear(self):
+        self.gear_solenoid.set(DoubleSolenoid.Value.kReverse)
+
+    def set_high_gear(self):
+        self.gear_solenoid.set(DoubleSolenoid.Value.kForward)

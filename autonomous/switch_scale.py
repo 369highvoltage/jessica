@@ -1,14 +1,34 @@
 from CommandGroup import CommandGroup
-from components.DriverComponent.DriveCommands import DriveByDistance, Turn
+from components.DriverComponent.DriveCommands import DriveByDistance, Turn, set_low_gear
 from components.LifterComponent.LifterCommands import MoveToPosition, Reset
-from components.GripperComponent.GripperCommands import SpitFast
+from components.GripperComponent.GripperCommands import SpitFast, LiftTo, close
+
+
+def drive_straight() -> CommandGroup:
+    auto = CommandGroup()
+
+    auto.add_parallel([
+        Reset(),
+        set_low_gear(),
+        LiftTo("down"),
+        close()
+    ])
+
+    auto.add_sequential(DriveByDistance(168, 0.5))
+
+    return auto
 
 
 def switch_scale(scale_location: str, switch_location: str, start_location: str) -> CommandGroup:
     angle = 0
     auto = CommandGroup()
 
-    auto.add_sequential(Reset())
+    auto.add_parallel([
+        Reset(),
+        set_low_gear(),
+        LiftTo("down"),
+        close()
+    ])
 
     if start_location == "L":
         angle = 90
@@ -37,7 +57,7 @@ def switch_scale(scale_location: str, switch_location: str, start_location: str)
         auto.add_sequential(DriveByDistance(12, 0.25))
         auto.add_sequential(SpitFast(speed=0.5))
     elif start_location == "L" or start_location == "R":
-        auto.add_sequential(DriveByDistance(168, 0.25))
+        auto.add_sequential(DriveByDistance(168, 0.5))
     elif start_location == "M":
         # switch from middle
         if switch_location == "L":

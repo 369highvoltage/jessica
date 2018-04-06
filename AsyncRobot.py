@@ -119,6 +119,8 @@ class AsyncRobot(IterativeRobotBase):
 
     def _flush_commands(self):
         # self._loop.
+        for command in self._active_commands:
+            command.finished()
         self._active_commands.clear()
 
     def start_command(self, command: Command):

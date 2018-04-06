@@ -16,8 +16,10 @@ from wpilib import \
 class GripperComponent:
 
     lift_positions = {
-        "up": 0.5,
+        "up": 0.44,
         "down": 0.8
+        # "up": 2.2,
+        # "down": 4.0
     }
 
     def __init__(self):

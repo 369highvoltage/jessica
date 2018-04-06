@@ -3,6 +3,19 @@ from Command import Command, InstantCommand
 from wpilib.timer import Timer
 from control_system import ControlSystem
 from wpilib.pidcontroller import PIDController
+from wpilib import DoubleSolenoid
+
+
+def set_low_gear() -> InstantCommand:
+    return InstantCommand(RobotMap.driver_component.set_low_gear)
+
+
+def set_high_gear() -> InstantCommand:
+    return InstantCommand(RobotMap.driver_component.set_high_gear)
+
+
+def toggle_gear() -> InstantCommand:
+    return InstantCommand(RobotMap.driver_component.toggle_gear)
 
 
 def curve_drive(linear: float, angular: float) -> InstantCommand:

@@ -1,4 +1,4 @@
-from wpilib import run, Joystick, SmartDashboard, CameraServer
+from wpilib import run, Joystick, SmartDashboard, CameraServer, SendableChooser
 from components.driver import Driver, GearMode
 from components.lifter import Lifter, MovementDir
 from utilities import truncate_float, normalize_range
@@ -8,10 +8,10 @@ from CommandGroup import CommandGroup
 from Command import Command, InstantCommand
 from robot_map import RobotMap
 from components.DriverComponent import DriverComponent
-from components.DriverComponent.DriveCommands import DriveByTime, DriveByDistance, Turn, curve_drive
+from components.DriverComponent.DriveCommands import DriveByTime, DriveByDistance, Turn, curve_drive, toggle_gear
 from components.LifterComponent.LifterCommands import move_lifter, MoveUp, MoveDown, move_down_instant, move_up_instant, Reset, MoveToPosition, move_to_position_instant, lock_carriage_move_elevator
-from components.GripperComponent.GripperCommands import move_left_right, toggle_spread, SpitFast, LiftTo
-from autonomous.switch_scale import switch_scale
+from components.GripperComponent.GripperCommands import move_left_right, toggle_spread, SpitFast, LiftTo, Toggle
+from autonomous.switch_scale import switch_scale, drive_straight
 from components.ClimbComponent.ClimbCommands import climb, stop
 
 
@@ -26,6 +26,19 @@ class Jessica(AsyncRobot):
         self.joystick = Joystick(1)
         CameraServer.launch()
 
+        self.autoChooser = SendableChooser()
+
+        self.autoChooser.addDefault("switch_scale", switch_scale)
+        # self.autoChooser.addObject("drive_forward", drive_straight)
+        SmartDashboard.putData("Autonomous Mode Chooser", self.autoChooser)
+
+        self.autoSideChooser = SendableChooser()
+
+        self.autoSideChooser.addDefault("left", "L")
+        self.autoSideChooser.addObject("right", "R")
+        self.autoSideChooser.addObject("middle", "M")
+        SmartDashboard.putData("Side Chooser", self.autoSideChooser)
+
     def robotPeriodic(self):
         SmartDashboard.putNumber("driver/current_distance", RobotMap.driver_component.current_distance)
         SmartDashboard.putNumber("driver/left_encoder",
@@ -37,6 +50,7 @@ class Jessica(AsyncRobot):
         SmartDashboard.putNumber("lifter/current_elevator_position", RobotMap.lifter_component.current_elevator_position)
         SmartDashboard.putNumber("lifter/current_carriage_position", RobotMap.lifter_component.current_carriage_position)
         SmartDashboard.putBoolean("lifter/carriage_top_switch", RobotMap.lifter_component.carriage_top_switch.get())
+        SmartDashboard.putNumber("gripper/gripper_pot", RobotMap.gripper_component.pot.get())
 
 
 
@@ -45,8 +59,9 @@ class Jessica(AsyncRobot):
         game_data = self.ds.getGameSpecificMessage()
         switch_position = game_data[0]
         scale_position = game_data[1]
-        start_position = "M"
-        self.start_command(switch_scale(scale_position, switch_position, start_position))
+        start_position = self.autoSideChooser.getSelected()
+        aut = self.autoChooser.getSelected()
+        self.start_command(aut(scale_position, switch_position, start_position))
         # self.start_command(DriveByDistance(168, 0.25))
         # auto = CommandGroup()
         # auto.add_sequential(Reset())
@@ -74,7 +89,9 @@ class Jessica(AsyncRobot):
         right_x = self.controller.getRawAxis(2)
         self.start_command(curve_drive(left_y, right_x))
         if self.controller.getRawButtonPressed(3):
-            self.start_command(LiftTo("up"))
+            self.start_command(Toggle())
+        if self.controller.getRawButtonPressed(14):
+            self.start_command(toggle_gear())
 
         # p2
         # l2 = -normalize_range(self.joystick.getRawAxis(3), -1, 1, 0, 1)
@@ -115,13 +132,15 @@ class Jessica(AsyncRobot):
         touchpad = 14
 
         if self.joystick.getRawButtonPressed(touchpad):
-            self.climb_mode = True
-            self.start_command(LiftTo("up"))
+            self.climb_mode = not self.climb_mode
+            if self.climb_mode:
+                self.man_mode = True
+                self.start_command(LiftTo("up"))
 
-        if self.joystick.getRawButtonPressed(7) and self.climb_mode:
+        if self.joystick.getRawButton(7) and self.climb_mode:
             self.start_command(climb())
 
-        if not self.joystick.getRawButtonPressed(7) and self.climb_mode:
+        if not self.joystick.getRawButton(7) and self.climb_mode:
             self.start_command(stop())
 
         g_speed = 0.0
@@ -138,10 +157,10 @@ class Jessica(AsyncRobot):
         if self.joystick.getRawButtonPressed(triangle):
             self.start_command(toggle_spread())
 
-        if self.joystick.getRawButtonPressed(r1):
+        if self.joystick.getRawButtonPressed(r1) and not self.climb_mode:
             self.start_command(move_to_position_instant("scale_high"))
             self.man_mode = False
-        if self.joystick.getRawButtonPressed(l1):
+        if self.joystick.getRawButtonPressed(l1) and not self.climb_mode:
             self.start_command(move_to_position_instant("floor"))
             self.man_mode = False
 

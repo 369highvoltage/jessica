@@ -3,8 +3,8 @@ from Command import InstantCommand
 
 
 def climb() -> InstantCommand:
-    return InstantCommand(RobotMap.climb_component.climb())
+    return InstantCommand(lambda: RobotMap.climb_component.climb())
 
 
 def stop() -> InstantCommand:
-    return InstantCommand(RobotMap.climb_component.stop())
+    return InstantCommand(lambda: RobotMap.climb_component.stop())
