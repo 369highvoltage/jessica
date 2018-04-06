@@ -2,15 +2,16 @@ import queue
 import threading
 import time
 
-class FeedbackController():
-    def __init__(self, event, gains, period=0.05, num_samples=8):
-        self._continuous = False
+class FeedbackController(threading.Thread):
+    def __init__(self, event, gains, input_func, output_func, continuous=False, num_samples=8, period=0.05):
+        self._continuous = continuous
         self._interrupted = event
         self._running = threading.Event()
         self._target = threading.Event()
+        self._mutex = threading.RLock()
 
-        self._inbound = queue.Queue()
-        self._outbound = queue.Queue()
+        self._input = input_func
+        self._output = output_func
         
         # Configuration functions.
         self.set_input_range()
@@ -27,81 +28,109 @@ class FeedbackController():
         self._num_samples = num_samples
         self._average_buffer = [0.0]
 
-        self._mutex = threading.RLock()
-    
+        threading.Thread.__init__(self)
+
     def on_target(self) -> bool:
         return self._target.is_set()
 
     def set_absolute_tolerance(self, abs_value) -> None:
-        with self._mutex:
-            self._is_on_target = lambda: self._is_at_target(abs_value)
+        if self._running.is_set():
+            self._attribute_error()
+
+        self._is_on_target = lambda: self._is_at_target(abs_value)
 
     def set_input_range(self, range=(0.0, 0.0)) -> None:
-        with self._mutex:
-            self._minimum_input = range[0]
-            self._maximum_input = range[1]
-            self._input_range = range[1] - range[0]
+        if self._running.is_set():
+            self._attribute_error()
+        
+        self._minimum_input = range[0]
+        self._maximum_input = range[1]
+        self._input_range = range[1] - range[0]
 
     def set_output_range(self, range=(-1.0, 1.0)) -> None:
-        with self._mutex:
-            self._minimum_output = range[0]
-            self._maximum_output = range[1]
+        if self._running.is_set():
+            self._attribute_error()
+        
+        self._minimum_output = range[0]
+        self._maximum_output = range[1]
     
     def set_percentage_tolerance(self, percentage) -> None:
-        with self._mutex:
-            self._is_on_target = lambda: self._is_at_target_percentage(percentage)
+        if self._running.is_set():
+            self._attribute_error()
+        
+        self._is_on_target = lambda: self._is_at_target_percentage(percentage)
     
     def set_PID(self, gains) -> None:
-        with self._mutex:
-            self._kP = gains[0]
-            self._kI = gains[1]*self._period
-            self._kD = gains[2]/self._period
-            
-            if len(gains < 4):
-                self._kF = 0.0
-            else:
-                self._kF = gains[3]
+        if self._running.is_set():
+            self._attribute_error()
+        
+        self._kP = gains[0]
+        self._kI = gains[1]*self._period
+        self._kD = gains[2]/self._period
+        
+        if len(gains < 4):
+            self._kF = 0.0
+        else:
+            self._kF = gains[3]
     
     def set_setpoint(self, setpoint) -> None:
-        with self._mutex:
-            self._setpoint = setpoint
+        if self._running.is_set():
+            self._attribute_error()
+        
+        self._setpoint = setpoint
     
-    def start(self):
+    def start_controller(self):
         self._running.set()
 
-    def stop(self):
+    def stop_controller(self):
         self._running.clear()
     
+    def _attribute_error(self):
+        raise AttributeError("Cannot set parameter while thread is running.")
+
     # Private Methods
     def _calculate(self) -> None:
         """Calculates the feedback value.
         
         Only runs when a value has been received from the queue.
         """
-        if not self._inbound.empty():
-            sample = self._inbound.get_nowait()
-
+        with self._mutex:
+            sample = self._input()
+        
+        if self._continuous:
+            self._error = self._get_continuous_error(self._setpoint - sample)
+        else:
             self._error = self._setpoint - sample
-            self._total_error += self._error
+        self._total_error += self._error
 
-            result = self._clamp(
-                self._kP * self._error + self._kI * self._total_error - self._kD * (sample - self._prev_sample),
-                self._minimum_output,
-                self._maximum_output
-            )
+        result = self._clamp(
+            self._kP * self._error + self._kI * self._total_error - self._kD * (sample - self._prev_sample),
+            self._minimum_output,
+            self._maximum_output
+        )
 
-            self._outbound.put_nowait(result)
-            self._prev_sample = sample
+        with self._mutex:
+            self._output(result)
+        
+        self._prev_sample = sample
 
-            if not len(self._average_buffer) < self._num_samples:
-                del self._average_buffer[0]
-            
-            self._average_buffer.append(sample)
+        if not len(self._average_buffer) < self._num_samples:
+            del self._average_buffer[0]
+        
+        self._average_buffer.append(sample)
 
     def _clamp(self, value, low, high):
         return max(low, min(value, high))
     
-    def execute(self) -> None:
+    def _get_continuous_error(self, error) -> float:
+        error %= self._input_range
+        if abs(error) > self._input_range/2:
+            if error > 0:
+                return error - self._input_range
+            else:
+                return error + self._input_range 
+
+    def run(self) -> None:
         self._running.wait()
         while self._running.is_set() or not self._interrupted.is_set():
             self._calculate()
