@@ -57,7 +57,7 @@ class LifterComponent:
     # }
 
     positions = {
-        "floor": 2.0,
+        "floor": 0.5,
         "portal": 34.0,
         "scale_low": 52.0,
         "scale_mid": 68.0,

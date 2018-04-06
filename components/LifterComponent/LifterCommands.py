@@ -27,6 +27,10 @@ class MoveToPosition(Command):
         print("endd move to position command")
 
 
+def move_to_position_instant(position: str) -> InstantCommand:
+    return InstantCommand(lambda: RobotMap.lifter_component.lift_to_distance(LifterComponent.positions[position]))
+
+
 def move_up_instant() -> InstantCommand:
     target_position = LifterComponent.positions[RobotMap.lifter_component.next_position()]
     return InstantCommand(lambda: RobotMap.lifter_component.lift_to_distance(target_position))
