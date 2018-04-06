@@ -3,6 +3,13 @@ from Command import InstantCommand, Command
 from components.LifterComponent import LifterComponent
 
 
+def lock_carriage_move_elevator(speed: float) -> InstantCommand:
+    def move():
+        RobotMap.lifter_component.set_carriage_speed(-1)
+        RobotMap.lifter_component.set_elevator_speed(speed)
+    return InstantCommand(move)
+
+
 def move_lifter(speed: float) -> InstantCommand:
     def move_lifter_sync():
         RobotMap.lifter_component.set_elevator_speed(speed)

@@ -1,6 +1,7 @@
 from robot_map import RobotMap
 from Command import InstantCommand, Command
 from wpilib.timer import Timer
+from .GripperComponent import GripperComponent
 
 
 def move_left_right(speed: float) -> InstantCommand:
@@ -71,3 +72,67 @@ def toggle_spread() -> InstantCommand:
     return InstantCommand(lambda: RobotMap.gripper_component.toggle_spread_state())
 
 
+class LiftTo(Command):
+    running = None
+
+    def __init__(self, pos: str):
+        super().__init__()
+        self._target_pos = GripperComponent.lift_positions[pos]
+        self._speed = 0
+
+    def on_start(self):
+        if LiftTo.running is not None:
+            LiftTo.running.finished()
+        if Toggle.running is not None:
+            Toggle.running.finished()
+        LiftTo.running = self
+        diff = RobotMap.gripper_component.pot.get() - self._target_pos
+        if diff == 0:
+            self._speed = 0
+        else:
+            self._speed = (diff / -diff) / 2
+
+    def execute(self):
+        if 0.2 < RobotMap.gripper_component.pot.get() - self._target_pos < 0.2:
+            RobotMap.gripper_component.set_lift_motor(0)
+            self.finished()
+            return
+        RobotMap.gripper_component.set_lift_motor(self._speed)
+
+    def on_end(self):
+        LiftTo.running = None
+
+
+class Toggle(Command):
+    running = None
+
+    def __init__(self):
+        super().__init__()
+        current_pos = RobotMap.gripper_component.current_lift_state()
+        if current_pos == "up":
+            self._target_pos = GripperComponent.lift_positions["down"]
+        else:
+            self._target_pos = GripperComponent.lift_positions["up"]
+        self._speed = 0
+
+    def on_start(self):
+        if LiftTo.running is not None:
+            LiftTo.running.finished()
+        if Toggle.running is not None:
+            Toggle.running.finished()
+        Toggle.running = self
+        diff = RobotMap.gripper_component.pot.get() - self._target_pos
+        if diff == 0:
+            self._speed = 0
+        else:
+            self._speed = (diff / -diff) / 2
+
+    def execute(self):
+        if 0.2 < RobotMap.gripper_component.pot.get() - self._target_pos < 0.2:
+            RobotMap.gripper_component.set_lift_motor(0)
+            self.finished()
+            return
+        RobotMap.gripper_component.set_lift_motor(self._speed)
+
+    def on_end(self):
+        Toggle.running = None

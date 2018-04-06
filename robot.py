@@ -9,9 +9,10 @@ from Command import Command, InstantCommand
 from robot_map import RobotMap
 from components.DriverComponent import DriverComponent
 from components.DriverComponent.DriveCommands import DriveByTime, DriveByDistance, Turn, curve_drive
-from components.LifterComponent.LifterCommands import move_lifter, MoveUp, MoveDown, move_down_instant, move_up_instant, Reset, MoveToPosition, move_to_position_instant
-from components.GripperComponent.GripperCommands import move_left_right, toggle_spread, SpitFast
+from components.LifterComponent.LifterCommands import move_lifter, MoveUp, MoveDown, move_down_instant, move_up_instant, Reset, MoveToPosition, move_to_position_instant, lock_carriage_move_elevator
+from components.GripperComponent.GripperCommands import move_left_right, toggle_spread, SpitFast, LiftTo
 from autonomous.switch_scale import switch_scale
+from components.ClimbComponent.ClimbCommands import climb, stop
 
 
 class Jessica(AsyncRobot):
@@ -37,6 +38,8 @@ class Jessica(AsyncRobot):
         SmartDashboard.putNumber("lifter/current_carriage_position", RobotMap.lifter_component.current_carriage_position)
         SmartDashboard.putBoolean("lifter/carriage_top_switch", RobotMap.lifter_component.carriage_top_switch.get())
 
+
+
     def autonomousInit(self):
         # Insert decision tree logic here.
         game_data = self.ds.getGameSpecificMessage()
@@ -60,6 +63,7 @@ class Jessica(AsyncRobot):
 
     def teleopInit(self):
         self.man_mode = False
+        self.climb_mode = False
         # self.start_command(Reset())
     
     def teleopPeriodic(self):
@@ -69,7 +73,8 @@ class Jessica(AsyncRobot):
         left_y = -self.controller.getRawAxis(1)
         right_x = self.controller.getRawAxis(2)
         self.start_command(curve_drive(left_y, right_x))
-
+        if self.controller.getRawButtonPressed(3):
+            self.start_command(LiftTo("up"))
 
         # p2
         # l2 = -normalize_range(self.joystick.getRawAxis(3), -1, 1, 0, 1)
@@ -78,15 +83,27 @@ class Jessica(AsyncRobot):
         # if self.man_mode:
         #     self.start_command(move_lifter(speed))
 
+
+        right_y = -self.joystick.getRawAxis(5)
         #up
-        if self.joystick.getPOV() == 0:
-            self.start_command(move_lifter(1))
-            self.man_mode = True
-        elif self.joystick.getPOV() == 180:
-            self.start_command(move_lifter(-1))
-            self.man_mode = True
-        elif self.man_mode:
-            self.start_command(move_lifter(0))
+        if not self.climb_mode:
+            if self.joystick.getPOV() == 0:
+                self.start_command(move_lifter(1))
+                self.man_mode = True
+            elif self.joystick.getPOV() == 180:
+                self.start_command(move_lifter(-1))
+                self.man_mode = True
+            elif self.man_mode:
+                self.start_command(move_lifter(0))
+        else:
+            if self.joystick.getPOV() == 0:
+                self.start_command(lock_carriage_move_elevator(1))
+                self.man_mode = True
+            elif self.joystick.getPOV() == 180:
+                self.start_command(lock_carriage_move_elevator(right_y))
+                self.man_mode = True
+            elif self.man_mode:
+                self.start_command(lock_carriage_move_elevator(right_y))
 
 
         l1 = 5
@@ -96,6 +113,16 @@ class Jessica(AsyncRobot):
         circle = 3
         triangle = 4
         touchpad = 14
+
+        if self.joystick.getRawButtonPressed(touchpad):
+            self.climb_mode = True
+            self.start_command(LiftTo("up"))
+
+        if self.joystick.getRawButtonPressed(7) and self.climb_mode:
+            self.start_command(climb())
+
+        if not self.joystick.getRawButtonPressed(7) and self.climb_mode:
+            self.start_command(stop())
 
         g_speed = 0.0
         if self.joystick.getRawButton(square):

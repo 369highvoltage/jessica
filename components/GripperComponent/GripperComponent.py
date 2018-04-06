@@ -14,6 +14,12 @@ from wpilib import \
 
 
 class GripperComponent:
+
+    lift_positions = {
+        "up": 0.5,
+        "down": 0.8
+    }
+
     def __init__(self):
         self.left_motor = Victor(0)
         self.right_motor = Victor(1)
@@ -42,5 +48,12 @@ class GripperComponent:
     def set_motor_speeds(self, left: float, right: float):
         self.left_motor.set(left)
         self.right_motor.set(-right)
+
+    def set_lift_motor(self, speed):
+        self.lift_motor.set(speed)
+
+    def current_lift_state(self) -> str:
+        positions = [(key, position) for key, position in GripperComponent.lift_positions.items()]
+        return min(positions, key=lambda position: abs(self.pot.get() - position[1]))[0]
 
 
