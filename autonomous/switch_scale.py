@@ -1,73 +1,78 @@
-from autonomous.autonomous import Auto
-from wpilib import DriverStation
-from components.driver import GearMode, Driver
-from magicbot.state_machine import state
+from CommandGroup import CommandGroup
+from components.DriverComponent.DriveCommands import DriveByDistance, Turn, set_low_gear
+from components.LifterComponent.LifterCommands import MoveToPosition, Reset
+from components.GripperComponent.GripperCommands import SpitFast, LiftTo, close
 
 
-class SwitchScale(Auto):
-    DEFAULT = True
-    MODE_NAME = "SwitchScale"
+def drive_straight() -> CommandGroup:
+    auto = CommandGroup()
 
-    @state(first=True)
-    def start(self):
-        angle = 0
-        scale = False
-        switch = False
+    auto.add_parallel([
+        Reset(),
+        set_low_gear(),
+        LiftTo("down"),
+        close()
+    ])
 
-        if self.scale_position == "L":
-            if self.start_location == 1:
-                angle = 90
-                scale = True
-            if self.start_location == 3:
-                scale = False
-                if self.switch_position == "L":
-                    switch = False
-                if self.switch_position == "R":
-                    switch = True
-                    angle = -90
-        if self.scale_position == "R":
-            if self.start_location == 1:
-                scale = False
-                if self.switch_position == "L":
-                    switch = True
-                    angle = 90
-                if self.switch_position == "R":
-                    switch = False
-            if self.start_location == 3:
-                scale = True
-                angle = -90
+    auto.add_sequential(DriveByDistance(168, 0.5))
 
-        if self.start_location != 2:
-            if scale:
-                practice_distance_to_scale = 220
-                self.states = [
-                    {"state": "lift", "position": "floor"},
-                    {"state": "move", "linear": 0.50, "displacement": practice_distance_to_scale},
-                    # {"state": "move", "linear": 0.25, "displacement": 324},
-                    {"state": "turn", "linear": 0.0, "angular": angle / (abs(angle) * 2), "angle": angle},
-                    {"state": "move", "linear": -0.50, "displacement": -36},
-                    {"state": "lift", "position": "max_height"},
-                    {"state": "shoot"},
-                    {"state": "stop_shooting"},
-                    # {"state": "turn", "linear": 0.0, "angular": angle / (-abs(angle) * 2), "angle": 0.0},
-                    {"state": "finish"}
-                ]
-            elif switch:
-                self.states = [
-                    { "state": "lift", "position": "switch" },
-                    { "state": "move", "linear": 0.5, "displacement": 168 },
-                    { "state": "turn", "linear": 0.1, "angular": self.angle/(abs(self.angle) * 2), "angle": self.angle },
-                    { "state": "move", "linear": 0.5, "displacement": 12 },
-                    { "state": "shoot" },
-                    {"state": "stop_shooting"},
-                    { "state": "move", "linear": -0.5, "displacement": 12},
-                    { "state": "turn", "linear": 0.1, "angular": self.angle/(-abs(self.angle) * 2), "angle": 0.0 },
-                    { "state": "finish" }
-                ]
-            else:
-                self.states = [
-                    {"state": "move", "linear": 0.25, "displacement": 196},  # 324
-                    {"state": "finish"}
-                ]
+    return auto
 
-        self.next(now=True)
+
+def switch_scale(scale_location: str, switch_location: str, start_location: str) -> CommandGroup:
+    angle = 0
+    auto = CommandGroup()
+
+    auto.add_parallel([
+        Reset(),
+        set_low_gear(),
+        LiftTo("down"),
+        close()
+    ])
+
+    if start_location == "L":
+        angle = 90
+    if start_location == "R":
+        angle = -90
+
+    if start_location == scale_location:
+        # go to scale
+        auto.add_parallel([
+            MoveToPosition("floor"),
+            DriveByDistance(324, 0.75)
+        ])
+        auto.add_sequential(Turn(angle, 0.25))
+        auto.add_sequential(DriveByDistance(-30, -0.25))
+        auto.add_sequential(MoveToPosition("scale_high"))
+        auto.add_sequential(SpitFast())
+        auto.add_sequential(MoveToPosition("floor"))
+    elif start_location == switch_location:
+        # go to switch
+        auto.add_parallel([
+            MoveToPosition("floor"),
+            DriveByDistance(152, 0.5)
+        ])
+        auto.add_sequential(Turn(angle, 0.25))
+        auto.add_sequential(MoveToPosition("portal"))
+        auto.add_sequential(DriveByDistance(12, 0.25))
+        auto.add_sequential(SpitFast(speed=0.5))
+    elif start_location == "L" or start_location == "R":
+        auto.add_sequential(DriveByDistance(168, 0.5))
+    elif start_location == "M":
+        # switch from middle
+        if switch_location == "L":
+            angle = -90
+        if switch_location == "R":
+            angle = 90
+        auto.add_sequential(DriveByDistance(24, 0.5))
+        auto.add_sequential(Turn(angle / 2, 0.25))
+        auto.add_sequential(DriveByDistance(48, 0.5))
+        auto.add_sequential(Turn(-(angle / 2), 0.25))
+        auto.add_sequential(MoveToPosition("portal"))
+        auto.add_sequential(DriveByDistance(24, 0.5))
+        auto.add_sequential(SpitFast(speed=0.5))
+        auto.add_sequential(DriveByDistance(-24, -0.5))
+        auto.add_sequential(MoveToPosition("floor"))
+
+
+    return auto

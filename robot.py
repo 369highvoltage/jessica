@@ -1,257 +1,180 @@
-import magicbot
-from wpilib import \
-    SpeedControllerGroup, \
-    DoubleSolenoid, \
-    ADXRS450_Gyro, \
-    Joystick, \
-    run, \
-    DigitalInput, \
-    AnalogPotentiometer, \
-    Talon, \
-    SmartDashboard, \
-    Victor, \
-    Compressor, \
-    AnalogInput
-from ctre import WPI_TalonSRX
-from wpilib.drive import DifferentialDrive
+from wpilib import run, Joystick, SmartDashboard, CameraServer, SendableChooser
 from components.driver import Driver, GearMode
 from components.lifter import Lifter, MovementDir
 from utilities import truncate_float, normalize_range
 from components.gripper import Gripper, GripState, GripLiftState
+from AsyncRobot import AsyncRobot
+from CommandGroup import CommandGroup
+from Command import Command, InstantCommand
+from robot_map import RobotMap
+from components.DriverComponent import DriverComponent
+from components.DriverComponent.DriveCommands import DriveByTime, DriveByDistance, Turn, curve_drive, toggle_gear
+from components.LifterComponent.LifterCommands import move_lifter, MoveUp, MoveDown, move_down_instant, move_up_instant, Reset, MoveToPosition, move_to_position_instant, lock_carriage_move_elevator
+from components.GripperComponent.GripperCommands import move_left_right, toggle_spread, SpitFast, LiftTo, Toggle
+from autonomous.switch_scale import switch_scale, drive_straight
+from components.ClimbComponent.ClimbCommands import climb, stop
 
 
-class Jessica(magicbot.MagicRobot):
-    driver: Driver
-    lifter: Lifter
-    gripper: Gripper
+class Jessica(AsyncRobot):
+
+    def __init__(self):
+        super().__init__()
 
     # Create motors and stuff here
-    def createObjects(self):
-        # driver component setup
-        # left_front = WPI_TalonSRX(2)
-        left_front = Victor(3)
-        left_rear = WPI_TalonSRX(1)
-        right_front = WPI_TalonSRX(4)
-        # right_rear = WPI_TalonSRX(3)
-        right_rear = Victor(6)
-        left = SpeedControllerGroup(left_front, left_rear)
-        right = SpeedControllerGroup(right_front, right_rear)
-
-        # driver component dependencies
-        self.drive_train = DifferentialDrive(left, right)
-        # self.left_encoder_motor = left_front
-        # self.right_encoder_motor = right_rear
-        self.left_encoder_motor = left_rear
-        self.right_encoder_motor = right_front
-        self.gear_solenoid = DoubleSolenoid(0, 1)
-        self.driver_gyro = ADXRS450_Gyro()
-
-        # lifter component dependencies
-        self.elevator_motor = WPI_TalonSRX(5)
-        self.elevator_bottom_switch = DigitalInput(9)
-
-        # self.carriage_motor = WPI_TalonSRX(6)
-        # self.carriage_motor = WPI_TalonSRX(2)
-        self.carriage_motor = WPI_TalonSRX(3)
-        self.carriage_bottom_switch = DigitalInput(1) # was 2
-        self.carriage_top_switch = DigitalInput(2) # was 1
-
-        # gripper component dependencies
-        self.claw_left_motor = Talon(0)
-        self.claw_right_motor = Talon(1)
-        self.claw_open_solenoid = DoubleSolenoid(2, 3)
-        self.claw_up_limit = DigitalInput(0)
-        self.claw_lift_motor = Victor(4)
-        self.claw_pot = AnalogPotentiometer(0)
-
-        # climber
-        self.climber_motor_1 = Victor(2)
-        self.climber_motor_2 = Victor(5)
-
-        # controllers
+    def robotInit(self):
         self.controller = Joystick(0)
-        self.operator = Joystick(1)
-        self.el_mode = False
+        self.joystick = Joystick(1)
+        CameraServer.launch()
 
-        # self.compressor = Compressor(module=0)
+        self.autoChooser = SendableChooser()
+
+        self.autoChooser.addDefault("switch_scale", switch_scale)
+        # self.autoChooser.addObject("drive_forward", drive_straight)
+        SmartDashboard.putData("Autonomous Mode Chooser", self.autoChooser)
+
+        self.autoSideChooser = SendableChooser()
+
+        self.autoSideChooser.addDefault("left", "L")
+        self.autoSideChooser.addObject("right", "R")
+        self.autoSideChooser.addObject("middle", "M")
+        SmartDashboard.putData("Side Chooser", self.autoSideChooser)
+
+    def robotPeriodic(self):
+        SmartDashboard.putNumber("driver/current_distance", RobotMap.driver_component.current_distance)
+        SmartDashboard.putNumber("driver/left_encoder",
+                                 RobotMap.driver_component.left_encoder_motor.getSelectedSensorPosition(0))
+        SmartDashboard.putNumber("driver/right_encoder",
+                                 RobotMap.driver_component.right_encoder_motor.getSelectedSensorPosition(0))
+        SmartDashboard.putNumber("driver/gyro", RobotMap.driver_component.driver_gyro.getAngle())
+        SmartDashboard.putNumber("lifter/current_position", RobotMap.lifter_component.current_position)
+        SmartDashboard.putNumber("lifter/current_elevator_position", RobotMap.lifter_component.current_elevator_position)
+        SmartDashboard.putNumber("lifter/current_carriage_position", RobotMap.lifter_component.current_carriage_position)
+        SmartDashboard.putBoolean("lifter/carriage_top_switch", RobotMap.lifter_component.carriage_top_switch.get())
+        SmartDashboard.putNumber("gripper/gripper_pot", RobotMap.gripper_component.pot.get())
+
+
+
+    def autonomousInit(self):
+        # Insert decision tree logic here.
+        game_data = self.ds.getGameSpecificMessage()
+        switch_position = game_data[0]
+        scale_position = game_data[1]
+        start_position = self.autoSideChooser.getSelected()
+        aut = self.autoChooser.getSelected()
+        self.start_command(aut(scale_position, switch_position, start_position))
+        # self.start_command(DriveByDistance(168, 0.25))
+        # auto = CommandGroup()
+        # auto.add_sequential(Reset())
+        # auto.add_sequential(MoveToPosition("portal"))
+        # auto.add_sequential(SpitFast())
+        # self.start_command(auto)
+
+    def disabledInit(self):
+        RobotMap.driver_component.moving_angular.clear()
+        RobotMap.driver_component.moving_linear.clear()
+
+    def autonomousPeriodic(self):
+        pass
 
     def teleopInit(self):
-        self.driver.set_gear(GearMode.LOW)
-        self.curve = True
-        # self.gripper.set_position_bottom()
-        # self.compressor.stop()
-        self.p2_pressed_map = {}
-        self.p2_pressed_map[0] = {"on": False, "pressed": False}
-        self.p2_pressed_map[180] = {"on": False, "pressed": False}
+        self.man_mode = False
         self.climb_mode = False
+        # self.start_command(Reset())
     
     def teleopPeriodic(self):
+        # if self.joystick.getRawButtonPressed(1):
 
-        # player1 controls
-        left_y = truncate_float(-self.controller.getRawAxis(1))
-        right_x = truncate_float(self.controller.getRawAxis(2))
-        right_y = truncate_float(-self.controller.getRawAxis(5))
-
-        # use options to toggle curve and tank drive
-        if self.controller.getRawButtonPressed(10):
-            self.curve = not self.curve
-
-        # use curve drive or tank drive
-        if self.curve:
-            self.driver.set_curve(left_y, right_x)
-        else:
-            self.driver.set_tank(left_y, right_y)
-
-        # touch pad toggles gear mode
-        if self.controller.getRawButtonPressed(14):
-            self.driver.toggle_gear()
-
-
-        # self.claw_lift_motor.set(-self.operator.getRawAxis(5))
-
+        # p1
+        left_y = -self.controller.getRawAxis(1)
+        right_x = self.controller.getRawAxis(2)
+        self.start_command(curve_drive(left_y, right_x))
         if self.controller.getRawButtonPressed(3):
-            self.gripper.toggle_position()
+            self.start_command(Toggle())
+        if self.controller.getRawButtonPressed(14):
+            self.start_command(toggle_gear())
 
-        # grip elevator motor with l1 and r1
-        # if self.controller.getRawButton(5):
-        #     self.gripper.set_lift_state(GripLiftState.DOWN)
-        # elif self.controller.getRawButton(6):
-        #     self.gripper.set_lift_state(GripLiftState.UP)
-        # else:
-        #     self.gripper.set_lift_state(GripLiftState.STOP)
+        # p2
+        # l2 = -normalize_range(self.joystick.getRawAxis(3), -1, 1, 0, 1)
+        # r2 = normalize_range(self.joystick.getRawAxis(4), -1, 1, 0, 1)
+        # speed = r2 + l2
+        # if self.man_mode:
+        #     self.start_command(move_lifter(speed))
 
-        # elevator controls
-        l2 = normalize_range(self.controller.getRawAxis(3), -1, 1, 0, 1)
-        r2 = normalize_range(self.controller.getRawAxis(4), -1, 1, 0, 1)
-        b_speed = -l2 + r2
 
-        # if self.controller.getRawButtonPressed(2):
-        #     self.el_mode = not self.el_mode
+        right_y = -self.joystick.getRawAxis(5)
+        #up
+        if not self.climb_mode:
+            if self.joystick.getPOV() == 0:
+                self.start_command(move_lifter(1))
+                self.man_mode = True
+            elif self.joystick.getPOV() == 180:
+                self.start_command(move_lifter(-1))
+                self.man_mode = True
+            elif self.man_mode:
+                self.start_command(move_lifter(0))
+        else:
+            if self.joystick.getPOV() == 0:
+                self.start_command(lock_carriage_move_elevator(1))
+                self.man_mode = True
+            elif self.joystick.getPOV() == 180:
+                self.start_command(lock_carriage_move_elevator(right_y))
+                self.man_mode = True
+            elif self.man_mode:
+                self.start_command(lock_carriage_move_elevator(right_y))
 
-        # if self.el_mode:
-        #     self.lifter.move_elevator(b_speed)
-        #     self.lifter.move_carriage(0)
-        # else:
-        #     self.lifter.move_carriage(b_speed)
-        #     self.lifter.move_elevator(0)
-        if self.controller.getRawButtonPressed(6):
-            self.driver.reset_drive_sensors()
-        SmartDashboard.putNumber("controller/direction", self.controller.getDirectionDegrees())
-        SmartDashboard.putNumber("controller/pov", self.controller.getPOV())
 
-        # player2 controls
+        l1 = 5
+        r1 = 6
+        square = 1
+        x = 2
+        circle = 3
+        triangle = 4
+        touchpad = 14
 
-        if self.operator.getRawButtonPressed(14):
+        if self.joystick.getRawButtonPressed(touchpad):
             self.climb_mode = not self.climb_mode
+            if self.climb_mode:
+                self.man_mode = True
+                self.start_command(LiftTo("up"))
 
-        if self.climb_mode:
-            self.lifter.manual_control = True
-            self.lifter.move_elevator(-self.operator.getRawAxis(5))
-            self.gripper.set_position_top()
-            self.lifter.move_carriage(-0.5)
+        if self.joystick.getRawButton(7) and self.climb_mode:
+            self.start_command(climb())
 
-        # elevator control with up and down on d-pad
-        if self.operator.getPOV() == 0:
-            self.p2_pressed_map[0]["on"] = True
-        else:
-            if self.p2_pressed_map[0]["on"]:
-                self.p2_pressed_map[0]["pressed"] = True
-            self.p2_pressed_map[0]["on"] = False
+        if not self.joystick.getRawButton(7) and self.climb_mode:
+            self.start_command(stop())
 
-        if self.operator.getPOV() == 180:
-            self.p2_pressed_map[180]["on"] = True
-        else:
-            if self.p2_pressed_map[180]["on"]:
-                self.p2_pressed_map[180]["pressed"] = True
-            self.p2_pressed_map[180]["on"] = False
+        g_speed = 0.0
+        if self.joystick.getRawButton(square):
+            g_speed = -1.0
+        if self.joystick.getRawButton(x):
+            g_speed = 1.0
 
-        # if self.p2_pressed_map[0]["pressed"]:
-        #     self.lifter.up()
-        #     self.lifter.manual_control = False
-        # if self.p2_pressed_map[180]["pressed"]:
-        #     self.lifter.down()
-        #     self.lifter.manual_control = False
+        if self.joystick.getRawButton(circle):
+            g_speed = -0.50
 
-        operator_l2 = normalize_range(self.operator.getRawAxis(3), -1, 1, 0, 1)
-        operator_r2 = normalize_range(self.operator.getRawAxis(4), -1, 1, 0, 1)
+        self.start_command(move_left_right(g_speed))
 
-        if self.operator.getRawButtonPressed(5):
-            self.lifter.down()
-            self.lifter.manual_control = False
-        if self.operator.getRawButtonPressed(6):
-            self.lifter.up()
-            self.lifter.manual_control = False
+        if self.joystick.getRawButtonPressed(triangle):
+            self.start_command(toggle_spread())
 
-        # up and down on d-pad moves between positions
-        # if self.lifter.manual_control:
-        #     if self.operator.getPOV() == 0:
-        #         self.lifter.move(MovementDir.UP)
-        #     elif self.operator.getPOV() == 180:
-        #         self.lifter.move(MovementDir.DOWN)
-        #     else:
-        #         self.lifter.move(MovementDir.STOP)
-        # else:
-        #     if self.operator.getRawButtonPressed(4):
-        #         self.lifter.up()
-        #     elif self.operator.getRawButtonPressed(2):
-        #         self.lifter.down()
+        if self.joystick.getRawButtonPressed(r1) and not self.climb_mode:
+            self.start_command(move_to_position_instant("scale_high"))
+            self.man_mode = False
+        if self.joystick.getRawButtonPressed(l1) and not self.climb_mode:
+            self.start_command(move_to_position_instant("floor"))
+            self.man_mode = False
 
-        if self.operator.getPOV() == 0 and not self.climb_mode:
-            self.lifter.move_sync(1)
-            self.lifter.manual_control = True
-        elif self.operator.getPOV() == 180 and not self.climb_mode:
-            self.lifter.move_sync(-1)
-            self.lifter.manual_control = True
-        elif self.lifter.manual_control and not self.climb_mode:
-            self.lifter.move_sync(0)
+        # if self.joystick.getRawButtonPressed(touchpad):
+        #     self.man_mode = not self.man_mode
 
-        # left-y moves the elevator
-        # operator_left_y = -self.operator.getRawAxis(1)
-        # if not (-0.1 < operator_left_y < 0.1):
-        #     self.lifter.manual_control = True
-        # self.lifter.move_sync(operator_left_y)
+        options = 10
+        if self.joystick.getRawButtonPressed(options):
+            RobotMap.driver_component.reset_drive_sensors()
 
+        share = 9
+        if self.joystick.getRawButtonPressed(share):
+            self.start_command(Reset())
 
-
-        # use triangle to open and close gripper
-        if self.operator.getRawButtonPressed(4):
-            self.gripper.toggle_open()
-
-        # use square to shoot based on the speed from r2
-        # use x to pull and fixed speed
-        if self.operator.getRawButton(1):
-            self.gripper.set_grip_speed(operator_r2)
-            self.gripper.set_grip_state(GripState.PUSH)
-        elif self.operator.getRawButton(2):
-            self.gripper.set_grip_speed(self.gripper.default_speed)
-            self.gripper.set_grip_state(GripState.PULL)
-        else:
-            self.gripper.set_grip_state(GripState.STOP)
-
-        if self.operator.getRawButton(7):
-            self.climber_motor_1.set(-1)
-            self.climber_motor_2.set(-1)
-        else:
-            self.climber_motor_1.set(0)
-            self.climber_motor_2.set(0)
-
-        # if self.controller.getRawButtonPressed(3):
-        #     self.lifter.manual_control = not self.lifter.manual_control
-
-        # if self.controller.getRawButtonPressed(5):
-        #     self.lifter.down()
-        # if self.controller.getRawButtonPressed(6):
-        #     self.lifter.up()
-        # if self.controller.getRawButtonPressed(6):
-        #     self.driver.reset_drive_sensors()
-
-        # if self.operator.getRawButtonPressed(6):
-        #     self.lifter.manual_control = not self.lifter.manual_control
-        # if self.operator.getRawButtonPressed(5):
-        #     self.lifter.manual_reset()
-
-        for b in self.p2_pressed_map.keys():
-            self.p2_pressed_map[b]["pressed"] = False
 
 
 if __name__ == '__main__':
