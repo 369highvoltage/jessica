@@ -82,7 +82,7 @@ class DriverComponent:
         if self.gear_solenoid.get() is DoubleSolenoid.Value.kForward:
             return GearMode.HIGH
         if self.gear_solenoid.get() is DoubleSolenoid.Value.kReverse:
-            return GearMode.HIGH
+            return GearMode.LOW
         if self.gear_solenoid.get() is DoubleSolenoid.Value.kOff:
             return GearMode.OFF
 
@@ -93,7 +93,9 @@ class DriverComponent:
             self.set_low_gear()
 
     def set_low_gear(self):
+        print("shift low")
         self.gear_solenoid.set(DoubleSolenoid.Value.kReverse)
 
     def set_high_gear(self):
+        print("shift high")
         self.gear_solenoid.set(DoubleSolenoid.Value.kForward)
