@@ -91,7 +91,12 @@ class Jessica(AsyncRobot):
         if self.controller.getRawButtonPressed(3):
             self.start_command(Toggle())
         if self.controller.getRawButtonPressed(14):
-            self.start_command(toggle_gear())
+            RobotMap.driver_component.toggle_gear()
+            # self.start_command(toggle_gear())
+        if self.controller.getRawButtonPressed(5):
+            RobotMap.driver_component.set_low_gear()
+        if self.controller.getRawButtonPressed(6):
+            RobotMap.driver_component.set_high_gear()
 
         # p2
         # l2 = -normalize_range(self.joystick.getRawAxis(3), -1, 1, 0, 1)

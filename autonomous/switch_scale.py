@@ -25,7 +25,7 @@ def switch_scale(scale_location: str, switch_location: str, start_location: str)
 
     auto.add_parallel([
         Reset(),
-        set_low_gear(),
+        # set_low_gear(),
         LiftTo("down"),
         close()
     ])
@@ -34,8 +34,9 @@ def switch_scale(scale_location: str, switch_location: str, start_location: str)
         angle = 90
     if start_location == "R":
         angle = -90
-
+    print("start: " + start_location)
     if start_location == scale_location:
+        print("going to scale start:" + start_location + " | scale: " + scale_location)
         # go to scale
         auto.add_parallel([
             MoveToPosition("floor"),
