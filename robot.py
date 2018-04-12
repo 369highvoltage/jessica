@@ -1,8 +1,5 @@
 from wpilib import run, Joystick, SmartDashboard, CameraServer, SendableChooser
-from components.driver import Driver, GearMode
-from components.lifter import Lifter, MovementDir
 from utilities import truncate_float, normalize_range
-from components.gripper import Gripper, GripState, GripLiftState
 from AsyncRobot import AsyncRobot
 from CommandGroup import CommandGroup
 from Command import Command, InstantCommand
@@ -24,7 +21,7 @@ class Jessica(AsyncRobot):
     def robotInit(self):
         self.controller = Joystick(0)
         self.joystick = Joystick(1)
-        CameraServer.launch()
+        CameraServer.launch('vision.py:main')
 
         self.autoChooser = SendableChooser()
 

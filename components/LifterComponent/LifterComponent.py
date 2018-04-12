@@ -95,6 +95,8 @@ class LifterComponent:
 
         self.elevator_motor.configAllowableClosedloopError(0, LifterComponent.ELEVATOR_ALLOWABLE_ERROR, LifterComponent.TIMEOUT_MS)
 
+        self.elevator_motor.configForwardSoftLimitThreshold(int(LifterComponent.ELEVATOR_MAX_HEIGHT / LifterComponent.ELEVATOR_CONV_FACTOR), 0)
+
         self.elevator_motor.config_kF(0, LifterComponent.ELEVATOR_kF, LifterComponent.TIMEOUT_MS)
         self.elevator_motor.config_kP(0, LifterComponent.ELEVATOR_kP, LifterComponent.TIMEOUT_MS)
         self.elevator_motor.config_kI(0, LifterComponent.ELEVATOR_kI, LifterComponent.TIMEOUT_MS)
@@ -120,6 +122,8 @@ class LifterComponent:
         self.carriage_motor.configPeakOutputReverse(LifterComponent.el_down, LifterComponent.TIMEOUT_MS)
 
         self.carriage_motor.configAllowableClosedloopError(0, LifterComponent.CARRIAGE_ALLOWABLE_ERROR, LifterComponent.TIMEOUT_MS)
+
+        self.carriage_motor.configForwardSoftLimitThreshold(int(LifterComponent.CARRIAGE_MAX_HEIGHT / LifterComponent.CARRIAGE_CONV_FACTOR), 0)
 
         self.carriage_motor.config_kF(0, LifterComponent.ELEVATOR_kF, LifterComponent.TIMEOUT_MS)
         self.carriage_motor.config_kP(0, LifterComponent.ELEVATOR_kP, LifterComponent.TIMEOUT_MS)
