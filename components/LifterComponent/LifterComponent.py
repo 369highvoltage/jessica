@@ -16,7 +16,8 @@ from ctre import WPI_TalonSRX, NeutralMode, FeedbackDevice, ControlMode
 
 class LifterComponent:
     # RPM Multipliers
-    ELEVATOR_MULTIPLIER = 1635.15 / 6317.67
+    # ELEVATOR_MULTIPLIER = 1635.15 / 6317.67
+    ELEVATOR_MULTIPLIER = 1528.98 / 3631.33
     CARRIAGE_MULTIPLIER = 1.0 - ELEVATOR_MULTIPLIER
 
     # Max heights of each stage.

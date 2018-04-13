@@ -47,6 +47,8 @@ class Jessica(AsyncRobot):
         SmartDashboard.putNumber("lifter/current_elevator_position", RobotMap.lifter_component.current_elevator_position)
         SmartDashboard.putNumber("lifter/current_carriage_position", RobotMap.lifter_component.current_carriage_position)
         SmartDashboard.putBoolean("lifter/carriage_top_switch", RobotMap.lifter_component.carriage_top_switch.get())
+        SmartDashboard.putBoolean("lifter/carriage_bottom_switch", RobotMap.lifter_component.carriage_bottom_switch.get())
+        SmartDashboard.putBoolean("lifter/elevator_bottom_switch", RobotMap.lifter_component.elevator_bottom_switch.get())
         SmartDashboard.putNumber("gripper/gripper_pot", RobotMap.gripper_component.pot.get())
 
 
@@ -94,6 +96,21 @@ class Jessica(AsyncRobot):
             RobotMap.driver_component.set_low_gear()
         if self.controller.getRawButtonPressed(6):
             RobotMap.driver_component.set_high_gear()
+
+        # vision = SmartDashboard.getNumber("vision", 0)
+        # vision_min = SmartDashboard.getNumber("vision_min", 0)
+        # vision_max = SmartDashboard.getNumber("vision_max", 0)
+        # clamped_vision = normalize_range(vision, vision_min, vision_max, -1, 1)
+        # left_vision = max(1 - abs(min(clamped_vision, 0)), 0)
+
+        # right_vision = abs(max(clamped_vision, 0))
+        # clamped_vision = min(max(vision, -1), 1)
+        # left_vision = 1 - abs(clamped_vision)
+        # right_vision = abs(clamped_vision)
+
+        # if not (vision_min == 0 and vision_max == 0):
+        #     self.controller.setRumble(Joystick.RumbleType.kLeftRumble, clamped_vision)
+        #     self.controller.setRumble(Joystick.RumbleType.kRightRumble, clamped_vision)
 
         # p2
         # l2 = -normalize_range(self.joystick.getRawAxis(3), -1, 1, 0, 1)
