@@ -90,7 +90,7 @@ class DriveByDistance(Command):
 class Turn(Command):
     def __init__(self, degrees: float, speed: float):
         super().__init__()
-        angular_gains = (0.02, 0.0001, 0.02, 0.0)
+        angular_gains = (0.0125, 0.00005, 0.01, 0.0)
         self._target_angle = degrees
         self._speed = speed
         self._angular = 0
@@ -118,3 +118,4 @@ class Turn(Command):
 
     def on_end(self):
         self.angular_controller.disable()
+        print("done turning")

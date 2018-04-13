@@ -96,7 +96,7 @@ class LiftTo(Command):
         if diff == 0:
             self._speed = 0
         else:
-            self._speed = (abs(diff) / diff) / 4
+            self._speed = (abs(diff) / diff) * 0.50
         RobotMap.gripper_component.set_lift_motor(self._speed)
 
     def on_end(self):
@@ -141,7 +141,7 @@ class Toggle(Command):
         if diff == 0:
             self._speed = 0
         else:
-            self._speed = (abs(diff) / diff) / 4
+            self._speed = (abs(diff) / diff) * 0.50
         RobotMap.gripper_component.set_lift_motor(self._speed)
 
     def on_end(self):

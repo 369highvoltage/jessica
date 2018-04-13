@@ -61,12 +61,7 @@ class Jessica(AsyncRobot):
         start_position = self.autoSideChooser.getSelected()
         aut = self.autoChooser.getSelected()
         self.start_command(aut(scale_position, switch_position, start_position))
-        # self.start_command(DriveByDistance(168, 0.25))
-        # auto = CommandGroup()
-        # auto.add_sequential(Reset())
-        # auto.add_sequential(MoveToPosition("portal"))
-        # auto.add_sequential(SpitFast())
-        # self.start_command(auto)
+        # self.start_command(Turn(45, 1))
 
     def disabledInit(self):
         RobotMap.driver_component.moving_angular.clear()
@@ -193,6 +188,8 @@ class Jessica(AsyncRobot):
         share = 9
         if self.joystick.getRawButtonPressed(share):
             self.start_command(Reset())
+        if self.joystick.getRawButton(8):
+            self.start_command(LiftTo("up"))
 
 
 

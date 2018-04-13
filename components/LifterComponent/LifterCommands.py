@@ -51,7 +51,7 @@ def move_down_instant() -> InstantCommand:
 
 class Reset(Command):
     def on_start(self):
-        pass
+        print("start reset command")
 
     def execute(self):
         speed = -0.25
@@ -63,7 +63,7 @@ class Reset(Command):
             self.finished()
 
     def on_end(self):
-        pass
+        print("end reset command")
 
 
 class MoveUp(Command):

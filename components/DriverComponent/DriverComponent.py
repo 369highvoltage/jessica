@@ -27,9 +27,7 @@ class GearMode:
 
 class DriverComponent:
     CONV_FACTOR = 0.0524 * 0.846
-    # LINEAR_SAMPLE_RATE = 28
-    LINEAR_SAMPLE_RATE = 16
-    # ANGULAR_SAMPLE_RATE = 4
+    LINEAR_SAMPLE_RATE = 28
     ANGULAR_SAMPLE_RATE = 2
 
     def __init__(self):
@@ -57,6 +55,12 @@ class DriverComponent:
         self.moving_linear = [0] * DriverComponent.LINEAR_SAMPLE_RATE
         self.moving_angular = [0] * DriverComponent.ANGULAR_SAMPLE_RATE
 
+    def set_curve_raw(self, linear, angular):
+        if -0.1 < linear < 0.1:
+            self.drive_train.curvatureDrive(linear, angular, True)
+        else:
+            self.drive_train.curvatureDrive(linear, angular, False)
+
     def set_curve(self, linear, angular):
         self.moving_linear.append(linear)
         self.moving_angular.append(angular)
@@ -66,11 +70,11 @@ class DriverComponent:
             self.moving_angular.pop(0)
         l_speed = sum([x / DriverComponent.LINEAR_SAMPLE_RATE for x in self.moving_linear])
         a_speed = sum([x / DriverComponent.ANGULAR_SAMPLE_RATE for x in self.moving_angular])
-        l_speed = math.sin(l_speed * math.pi/2)
+        # l_speed = math.sin(l_speed * math.pi/2)
         if -0.1 < l_speed < 0.1:
-            self.drive_train.curvatureDrive(l_speed, a_speed, True)
+            self.drive_train.curvatureDrive(linear, a_speed, True)
         else:
-            self.drive_train.curvatureDrive(l_speed, a_speed, False)
+            self.drive_train.curvatureDrive(linear, a_speed, False)
 
     def reset_drive_sensors(self):
         self.driver_gyro.reset()
