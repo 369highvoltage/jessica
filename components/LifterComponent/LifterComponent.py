@@ -12,9 +12,13 @@ from wpilib import \
     Compressor, \
     AnalogInput
 from ctre import WPI_TalonSRX, NeutralMode, FeedbackDevice, ControlMode
+from Events import Events
 
 
-class LifterComponent:
+class LifterComponent(Events):
+    class EVENTS:
+        on_control_move = "on_control_move"
+        on_manual_move = "on_manual move"
     # RPM Multipliers
     # ELEVATOR_MULTIPLIER = 1635.15 / 6317.67
     ELEVATOR_MULTIPLIER = 2102.35 / 3631.33
@@ -66,12 +70,18 @@ class LifterComponent:
     }
 
     def __init__(self):
+        Events.__init__()
         self.elevator_motor = WPI_TalonSRX(5)
         self.elevator_bottom_switch = DigitalInput(9)
 
         self.carriage_motor = WPI_TalonSRX(3)
         self.carriage_bottom_switch = DigitalInput(1)
         self.carriage_top_switch = DigitalInput(2)
+
+        self._create_events([
+            LifterComponent.EVENTS.on_control_move,
+            LifterComponent.EVENTS.on_manual_move
+        ])
 
         self._is_reset = False
 
@@ -137,6 +147,7 @@ class LifterComponent:
             self.elevator_motor.set(0)
         else:
             self.elevator_motor.set(speed)
+        self.trigger_event(LifterComponent.EVENTS.on_manual_move)
 
     def set_carriage_speed(self, speed):
         if (speed > 0 and self.carriage_top_switch.get()) \
@@ -144,6 +155,7 @@ class LifterComponent:
             self.carriage_motor.set(0)
         else:
             self.carriage_motor.set(speed)
+        self.trigger_event(LifterComponent.EVENTS.on_manual_move)
 
     def reset_sensors(self):
         self.carriage_motor.setSelectedSensorPosition(0, 0, LifterComponent.TIMEOUT_MS)
@@ -162,13 +174,19 @@ class LifterComponent:
     def current_position(self) -> float:
         return self.current_elevator_position + self.current_carriage_position
 
+    def stop_lift(self):
+        self.elevator_motor.stopMotor()
+        self.carriage_motor.stopMotor()
+
     def elevator_to_target_position(self, inches: float):
         if self._is_reset:
             self.elevator_motor.set(WPI_TalonSRX.ControlMode.Position, inches / LifterComponent.ELEVATOR_CONV_FACTOR)
+            self.trigger_event(LifterComponent.EVENTS.on_control_move)
 
     def carriage_to_target_position(self, inches: float):
         if self._is_reset:
             self.carriage_motor.set(WPI_TalonSRX.ControlMode.Position, inches / LifterComponent.CARRIAGE_CONV_FACTOR)
+            self.trigger_event(LifterComponent.EVENTS.on_control_move)
 
     def lift_to_distance(self, inches):
         i = inches + 6
@@ -181,6 +199,7 @@ class LifterComponent:
 
         self.elevator_to_target_position(elevator)
         self.carriage_to_target_position(carriage)
+        self.trigger_event(LifterComponent.EVENTS.on_control_move)
 
     def is_at_position(self, position: str) -> bool:
         return self.is_at_distance(LifterComponent.positions[position])

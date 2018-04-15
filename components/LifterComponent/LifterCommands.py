@@ -24,14 +24,22 @@ class MoveToPosition(Command):
         self._target_position = LifterComponent.positions[position]
 
     def on_start(self):
+        # start moving towards the target
+        RobotMap.lifter_component.lift_to_distance(self._target_position)
+        # check if another command is trying to move the lifter
+        RobotMap.lifter_component.add_listener(LifterComponent.EVENTS.on_control_move, self.interrupt)
+        RobotMap.lifter_component.add_listener(LifterComponent.EVENTS.on_manual_move, self.interrupt)
         print("start move to position command "+ self._position)
 
     def execute(self):
-        RobotMap.lifter_component.lift_to_distance(self._target_position)
         if RobotMap.lifter_component.is_at_distance(self._target_position):
             self.finished()
 
     def on_end(self):
+        if not self._interupted:
+            RobotMap.lifter_component.stop_lift()
+        RobotMap.lifter_component.remove_listener(LifterComponent.EVENTS.on_control_move, self.interrupt)
+        RobotMap.lifter_component.remove_listener(LifterComponent.EVENTS.on_manual_move, self.interrupt)
         print("end move to position command")
 
 
