@@ -6,6 +6,6 @@ from components.ClimbComponent import ClimberComponent
 
 class RobotMap:
     driver_component = DriverComponent()
-    lifter_component = LifterComponent()
+    # lifter_component = LifterComponent()
     gripper_component = GripperComponent()
     climb_component = ClimberComponent()

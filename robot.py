@@ -6,7 +6,7 @@ from Command import Command, InstantCommand
 from robot_map import RobotMap
 from components.DriverComponent import DriverComponent
 from components.DriverComponent.DriveCommands import DriveByTime, DriveByDistance, Turn, curve_drive, toggle_gear
-from components.LifterComponent.LifterCommands import move_lifter, MoveUp, MoveDown, move_down_instant, move_up_instant, Reset, MoveToPosition, move_to_position_instant, lock_carriage_move_elevator
+# from components.LifterComponent.LifterCommands import move_lifter, MoveUp, MoveDown, move_down_instant, move_up_instant, Reset, MoveToPosition, move_to_position_instant, lock_carriage_move_elevator
 from components.GripperComponent.GripperCommands import move_left_right, toggle_spread, SpitFast, LiftTo, Toggle
 from autonomous.switch_scale import switch_scale, drive_straight
 from components.ClimbComponent.ClimbCommands import climb, stop
@@ -42,14 +42,15 @@ class Jessica(AsyncRobot):
                                  RobotMap.driver_component.left_encoder_motor.getSelectedSensorPosition(0))
         SmartDashboard.putNumber("driver/right_encoder",
                                  RobotMap.driver_component.right_encoder_motor.getSelectedSensorPosition(0))
-        SmartDashboard.putNumber("driver/gyro", RobotMap.driver_component.driver_gyro.getAngle())
-        SmartDashboard.putNumber("lifter/current_position", RobotMap.lifter_component.current_position)
-        SmartDashboard.putNumber("lifter/current_elevator_position", RobotMap.lifter_component.current_elevator_position)
-        SmartDashboard.putNumber("lifter/current_carriage_position", RobotMap.lifter_component.current_carriage_position)
-        SmartDashboard.putBoolean("lifter/carriage_top_switch", RobotMap.lifter_component.carriage_top_switch.get())
-        SmartDashboard.putBoolean("lifter/carriage_bottom_switch", RobotMap.lifter_component.carriage_bottom_switch.get())
-        SmartDashboard.putBoolean("lifter/elevator_bottom_switch", RobotMap.lifter_component.elevator_bottom_switch.get())
-        SmartDashboard.putNumber("gripper/gripper_pot", RobotMap.gripper_component.pot.get())
+        # SmartDashboard.putNumber("driver/pigeon", RobotMap.driver_component.pigeon.getRawGyro())
+        # SmartDashboard.putNumber("driver/gyro", RobotMap.driver_component.driver_gyro.getAngle())
+        # SmartDashboard.putNumber("lifter/current_position", RobotMap.lifter_component.current_position)
+        # SmartDashboard.putNumber("lifter/current_elevator_position", RobotMap.lifter_component.current_elevator_position)
+        # SmartDashboard.putNumber("lifter/current_carriage_position", RobotMap.lifter_component.current_carriage_position)
+        # SmartDashboard.putBoolean("lifter/carriage_top_switch", RobotMap.lifter_component.carriage_top_switch.get())
+        # SmartDashboard.putBoolean("lifter/carriage_bottom_switch", RobotMap.lifter_component.carriage_bottom_switch.get())
+        # SmartDashboard.putBoolean("lifter/elevator_bottom_switch", RobotMap.lifter_component.elevator_bottom_switch.get())
+        # SmartDashboard.putNumber("gripper/gripper_pot", RobotMap.gripper_component.pot.get())
 
 
 
@@ -91,7 +92,7 @@ class Jessica(AsyncRobot):
             RobotMap.driver_component.set_low_gear()
         if self.controller.getRawButtonPressed(6):
             RobotMap.driver_component.set_high_gear()
-
+        """
         # vision = SmartDashboard.getNumber("vision", 0)
         # vision_min = SmartDashboard.getNumber("vision_min", 0)
         # vision_max = SmartDashboard.getNumber("vision_max", 0)
@@ -190,7 +191,7 @@ class Jessica(AsyncRobot):
             self.start_command(Reset())
         if self.joystick.getRawButton(8):
             self.start_command(LiftTo("up"))
-
+        """
 
 
 if __name__ == '__main__':

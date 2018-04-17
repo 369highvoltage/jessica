@@ -4,6 +4,7 @@ from wpilib.timer import Timer
 from control_system import ControlSystem
 from wpilib.pidcontroller import PIDController
 from wpilib import DoubleSolenoid
+from pid_output import PIDOutput
 
 
 def set_low_gear() -> InstantCommand:
@@ -58,16 +59,30 @@ class DriveByDistance(Command):
         angular_gains = (0.02, 0.0001, 0.02, 0.0)
         self._target_distance = inches
         self._speed = speed
+        self._linear = 0
         self._angular = 0
 
-        self.angular_controller = PIDController(*angular_gains, RobotMap.driver_component.driver_gyro, output=self)
+        # setup angular pid controller
+        self.angular_controller = PIDController(
+            *angular_gains,
+            RobotMap.driver_component.pigeon,
+            output=PIDOutput(self._update_angular)
+        )
         self.angular_controller.setInputRange(-360, 360)
         self.angular_controller.setOutputRange(-1, 1)
         self.angular_controller.setAbsoluteTolerance(0.5)
 
         self.angular_controller.setSetpoint(0)
 
-    def pidWrite(self, output):
+        # setup linear pid controller
+        self.linear_controll = PIDController(
+            *linear_gains,
+            RobotMap.driver_component.
+        )
+
+    def _update_angular_pid(self):
+        # return RobotMap.driver_component.pigeon.getYawPitchRoll
+    def _update_angular(self, output):
         self._angular = output
 
     def on_start(self):

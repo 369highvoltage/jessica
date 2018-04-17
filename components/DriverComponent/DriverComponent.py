@@ -11,13 +11,29 @@ from wpilib import \
     Victor, \
     Compressor, \
     AnalogInput
-from ctre import WPI_TalonSRX
+from ctre import WPI_TalonSRX, PigeonIMU, FeedbackDevice
+from ctre.talonsrx import TalonSRX
 from wpilib.drive import DifferentialDrive
 from Command import InstantCommand, Command
+from wpilib.pidcontroller import PIDController
 from wpilib.timer import Timer
 from enum import Enum, auto
 import math
 
+class RemoteSensorSource(object):
+    Off = int(0)
+    TalonSRX_SelectedSensor = int(1)
+    Pigeon_Yaw = int(2)
+    Pigeon_Pitch = int(3)
+    Pigeon_Roll = int(4)
+    CANifier_Quadrature = int(5)
+    CANifier_PWMInput0 = int(6)
+    CANifier_PWMInput1 = int(7)
+    CANifier_PWMInput2 = int(8)
+    CANifier_PWMInput3 = int(9)
+    GadgeteerPigeon_Yaw = int(10)
+    GadgeteerPigeon_Pitch = int(11)
+    GadgeteerPigeon_Roll = int(12)
 
 class GearMode:
     OFF = auto()
@@ -29,29 +45,59 @@ class DriverComponent:
     CONV_FACTOR = 0.0524 * 0.846
     LINEAR_SAMPLE_RATE = 28
     ANGULAR_SAMPLE_RATE = 2
+    PID_PRIMARY = 0
+    REMOTE_0 = 0
+    REMOTE_1 = 1
+    PID_TURN = 1
+    TimeOut_ms = 0
 
     def __init__(self):
-        left_front = Victor(3)
-        left_rear = WPI_TalonSRX(1)
-        right_front = WPI_TalonSRX(4)
-        right_rear = Victor(6)
+        # left_front = Victor(3)
+        left_front = WPI_TalonSRX(5)
+        self.left_encoder_motor = left = left_rear = WPI_TalonSRX(1)
+        self.right_encoder_motor = right = right_front = WPI_TalonSRX(4)
+        # right_rear = Victor(6)
+        self.pigeon_talon = right_rear = WPI_TalonSRX(6)
+        self.pigeon = PigeonIMU(self.pigeon_talon)
 
-        left = SpeedControllerGroup(left_front, left_rear)
-        right = SpeedControllerGroup(right_front, right_rear)
+        # left = SpeedControllerGroup(left_front, left_rear)
+        # right = SpeedControllerGroup(right_front, right_rear)
 
-        self.left_encoder_motor = left_rear
-        self.right_encoder_motor = right_front
+        left_front.follow(left_rear)
+        right_rear.follow(right_front)
         self.gear_solenoid = DoubleSolenoid(0, 1)
-        self.driver_gyro = ADXRS450_Gyro()
+        # self.driver_gyro = ADXRS450_Gyro()
 
-        self.drive_train = DifferentialDrive(
-            left,
-            right)
+        self.drive_train = DifferentialDrive(left, right)
+        self.drive_train.setDeadband(0.1)
 
         # setup encoders
         self.left_encoder_motor.setSensorPhase(True)
-        self.drive_train.setDeadband(0.1)
+        self.right_encoder_motor.setSensorPhase(False)
 
+        """
+        # setup left encoder
+        self.left_encoder_motor.configSelectedFeedbackSensor(
+            FeedbackDevice.QuadEncoder,
+            DriverComponent.PID_PRIMARY,
+            DriverComponent.TimeOut_ms
+        )
+
+        # connect left encoder talon to right talon srx
+        self.right_encoder_motor.configRemoteFeedbackFilter(
+            self.left_encoder_motor.getDeviceID(),
+            RemoteSensorSource.TalonSRX_SelectedSensor,
+            DriverComponent.REMOTE_0,
+            DriverComponent.TimeOut_ms
+        )
+
+        # connect piegon talon to right talon srx
+        self.right_encoder_motor.configRemoteFeedbackFilter(
+            self.pigeon_talon.getDeviceID(),
+            RemoteSensorSource.GadgeteerPigeon_Yaw,
+            DriverComponent.TimeOut_ms
+        )
+        """
         self.moving_linear = [0] * DriverComponent.LINEAR_SAMPLE_RATE
         self.moving_angular = [0] * DriverComponent.ANGULAR_SAMPLE_RATE
 
@@ -77,7 +123,7 @@ class DriverComponent:
             self.drive_train.curvatureDrive(linear, a_speed, False)
 
     def reset_drive_sensors(self):
-        self.driver_gyro.reset()
+        # self.driver_gyro.reset()
         self.left_encoder_motor.setSelectedSensorPosition(0, 0, 0)
         self.right_encoder_motor.setSelectedSensorPosition(0, 0, 0)
 

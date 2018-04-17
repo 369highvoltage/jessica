@@ -66,7 +66,8 @@ class LifterComponent:
     }
 
     def __init__(self):
-        self.elevator_motor = WPI_TalonSRX(5)
+        # self.elevator_motor = WPI_TalonSRX(5)
+        self.elevator_motor = None
         self.elevator_bottom_switch = DigitalInput(9)
 
         self.carriage_motor = WPI_TalonSRX(3)
