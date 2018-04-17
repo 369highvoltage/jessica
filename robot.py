@@ -6,7 +6,7 @@ from Command import Command, InstantCommand
 from robot_map import RobotMap
 from components.DriverComponent import DriverComponent
 from components.DriverComponent.DriveCommands import DriveByTime, DriveByDistance, Turn, curve_drive, toggle_gear
-from components.LifterComponent.LifterCommands import move_lifter, MoveUp, MoveDown, move_down_instant, move_up_instant, Reset, MoveToPosition, move_to_position_instant, lock_carriage_move_elevator
+# from components.LifterComponent.LifterCommands import move_lifter, MoveUp, MoveDown, move_down_instant, move_up_instant, Reset, MoveToPosition, move_to_position_instant, lock_carriage_move_elevator
 from components.GripperComponent.GripperCommands import move_left_right, toggle_spread, SpitFast, LiftTo, Toggle
 from autonomous.switch_scale import switch_scale, drive_straight
 from components.ClimbComponent.ClimbCommands import climb, stop
@@ -43,6 +43,18 @@ class Jessica(AsyncRobot):
         SmartDashboard.putNumber("driver/right_encoder",
                                  RobotMap.driver_component.right_encoder_motor.getSelectedSensorPosition(0))
         SmartDashboard.putNumber("driver/gyro", RobotMap.driver_component.driver_gyro.getAngle())
+
+        if RobotMap.driver_component.back_distance_sensor.isRangeValid():
+            SmartDashboard.putNumber("driver/back_distance_sensor", RobotMap.driver_component.back_distance_sensor.getRangeInches())
+        
+        vision_width = SmartDashboard.getNumber("vision/vision_width", 0)
+        vision = SmartDashboard.getNumber("vision/vision_pid", 0)
+        vision_min = -(vision_width / 2)
+        vision_max = vision_width / 2
+        
+        clamped_vision = normalize_range(vision, vision_min, vision_max, -1, 1)
+        SmartDashboard.putNumber("vision/vision_percent", clamped_vision)
+        """
         SmartDashboard.putNumber("lifter/current_position", RobotMap.lifter_component.current_position)
         SmartDashboard.putNumber("lifter/current_elevator_position", RobotMap.lifter_component.current_elevator_position)
         SmartDashboard.putNumber("lifter/current_carriage_position", RobotMap.lifter_component.current_carriage_position)
@@ -50,7 +62,7 @@ class Jessica(AsyncRobot):
         SmartDashboard.putBoolean("lifter/carriage_bottom_switch", RobotMap.lifter_component.carriage_bottom_switch.get())
         SmartDashboard.putBoolean("lifter/elevator_bottom_switch", RobotMap.lifter_component.elevator_bottom_switch.get())
         SmartDashboard.putNumber("gripper/gripper_pot", RobotMap.gripper_component.pot.get())
-
+        """
 
 
     def autonomousInit(self):
@@ -91,7 +103,11 @@ class Jessica(AsyncRobot):
             RobotMap.driver_component.set_low_gear()
         if self.controller.getRawButtonPressed(6):
             RobotMap.driver_component.set_high_gear()
-
+        
+        
+        
+        # cube_left = 
+        """
         # vision = SmartDashboard.getNumber("vision", 0)
         # vision_min = SmartDashboard.getNumber("vision_min", 0)
         # vision_max = SmartDashboard.getNumber("vision_max", 0)
@@ -190,7 +206,7 @@ class Jessica(AsyncRobot):
             self.start_command(Reset())
         if self.joystick.getRawButton(8):
             self.start_command(LiftTo("up"))
-
+        """
 
 
 if __name__ == '__main__':

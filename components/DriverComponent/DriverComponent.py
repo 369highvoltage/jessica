@@ -10,7 +10,8 @@ from wpilib import \
     SmartDashboard, \
     Victor, \
     Compressor, \
-    AnalogInput
+    AnalogInput, \
+    Ultrasonic
 from ctre import WPI_TalonSRX
 from wpilib.drive import DifferentialDrive
 from Command import InstantCommand, Command
@@ -31,22 +32,20 @@ class DriverComponent:
     ANGULAR_SAMPLE_RATE = 2
 
     def __init__(self):
-        left_front = Victor(3)
-        left_rear = WPI_TalonSRX(1)
-        right_front = WPI_TalonSRX(4)
-        right_rear = Victor(6)
+        # left_front = Victor(3)
+        left_front = WPI_TalonSRX(6)
+        self.left_encoder_motor = left = left_rear = WPI_TalonSRX(1)
+        self.right_encoder_motor = right = right_front = WPI_TalonSRX(4)
+        # right_rear = Victor(6)
+        right_rear = WPI_TalonSRX(5)
 
-        left = SpeedControllerGroup(left_front, left_rear)
-        right = SpeedControllerGroup(right_front, right_rear)
-
-        self.left_encoder_motor = left_rear
-        self.right_encoder_motor = right_front
+        left_front.follow(left_rear)
+        right_rear.follow(right_front)
+        
         self.gear_solenoid = DoubleSolenoid(0, 1)
         self.driver_gyro = ADXRS450_Gyro()
 
-        self.drive_train = DifferentialDrive(
-            left,
-            right)
+        self.drive_train = DifferentialDrive(left, right)
 
         # setup encoders
         self.left_encoder_motor.setSensorPhase(True)
@@ -54,6 +53,10 @@ class DriverComponent:
 
         self.moving_linear = [0] * DriverComponent.LINEAR_SAMPLE_RATE
         self.moving_angular = [0] * DriverComponent.ANGULAR_SAMPLE_RATE
+
+        self.back_distance_sensor = Ultrasonic(7, 8)
+        self.back_distance_sensor.setAutomaticMode(True)
+        self.back_distance_sensor.setEnabled(True)
 
     def set_curve_raw(self, linear, angular):
         if -0.1 < linear < 0.1:
