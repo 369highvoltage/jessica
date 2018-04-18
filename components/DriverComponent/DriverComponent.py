@@ -12,7 +12,7 @@ from wpilib import \
     Compressor, \
     AnalogInput, \
     Ultrasonic
-from ctre import WPI_TalonSRX
+from ctre import WPI_TalonSRX, FeedbackDevice, RemoteSensorSource
 from wpilib.drive import DifferentialDrive
 from Command import InstantCommand, Command
 from wpilib.timer import Timer
@@ -32,6 +32,12 @@ class DriverComponent(Events):
     LINEAR_SAMPLE_RATE = 28
     ANGULAR_SAMPLE_RATE = 2
 
+    PID_PRIMARY = 0
+    REMOTE_0 = 0
+    REMOTE_1 = 1
+    PID_TURN = 1
+    TimeOut_ms = 0
+
     class EVENTS(object):
         driving = "driving"
 
@@ -42,7 +48,7 @@ class DriverComponent(Events):
         self.left_encoder_motor = left = left_rear = WPI_TalonSRX(1)
         self.right_encoder_motor = right = right_front = WPI_TalonSRX(4)
         # right_rear = Victor(6)
-        right_rear = WPI_TalonSRX(5)
+        right_rear = WPI_TalonSRX(7)
 
         left_front.follow(left_rear)
         right_rear.follow(right_front)
@@ -64,7 +70,30 @@ class DriverComponent(Events):
         self.back_distance_sensor.setEnabled(True)
 
         self._create_event(DriverComponent.EVENTS.driving)
-        # self.add_listener(DriverComponent.EVENTS.driving, lambda: print("driving"))
+
+    def setup_talons(self):
+        # setup left encoder
+        self.left_encoder_motor.configSelectedFeedbackSensor(
+            FeedbackDevice.QuadEncoder,
+            DriverComponent.PID_PRIMARY,
+            DriverComponent.TimeOut_ms
+        )
+
+        # connect left encoder talon to right talon srx
+        self.right_encoder_motor.configRemoteFeedbackFilter(
+            self.left_encoder_motor.getDeviceID(),
+            RemoteSensorSource.TalonSRX_SelectedSensor,
+            DriverComponent.REMOTE_0,
+            DriverComponent.TimeOut_ms
+        )
+
+        # connect piegon talon to right talon srx
+        # self.right_encoder_motor.configRemoteFeedbackFilter(
+        #     self.pigeon_talon.getDeviceID(),
+        #     RemoteSensorSource.GadgeteerPigeon_Yaw,
+        #     DriverComponent.REMOTE_1,
+        #     DriverComponent.TimeOut_ms
+        # )
 
     def set_curve_raw(self, linear, angular):
         if -0.1 < linear < 0.1:

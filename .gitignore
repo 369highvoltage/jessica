@@ -1,3 +1,7 @@
+opkg_cache
+pip_cache
+
+
 .idea
 .vscode
 

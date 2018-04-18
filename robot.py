@@ -21,6 +21,7 @@ class Jessica(AsyncRobot):
     def robotInit(self):
         self.controller = Joystick(0)
         self.joystick = Joystick(1)
+        RobotMap.driver_component.setup_talons()
         CameraServer.launch('vision.py:main')
 
         self.autoChooser = SendableChooser()
