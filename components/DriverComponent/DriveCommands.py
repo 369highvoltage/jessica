@@ -19,7 +19,7 @@ def toggle_gear() -> InstantCommand:
 
 
 def curve_drive(linear: float, angular: float) -> InstantCommand:
-    return InstantCommand(lambda: RobotMap.driver_component.set_curve(linear, angular))
+    return InstantCommand(lambda: RobotMap.driver_component.set_curve_raw(linear, angular))
 
 
 class DriveByTime(Command):

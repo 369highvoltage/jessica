@@ -11,9 +11,10 @@ from wpilib import \
     Victor, \
     Compressor, \
     AnalogInput
+from Events import Events
+from Command import Command
 
-
-class GripperComponent:
+class GripperComponent(Events):
 
     lift_positions = {
         "up": 0.2,
@@ -22,7 +23,12 @@ class GripperComponent:
         # "down": 4.0
     }
 
+    class EVENTS(object):
+        gripper_started_moving = "gripper_started_moving"
+        gripper_started_moving_data = Command
+
     def __init__(self):
+        Events.__init__(self)
         self.left_motor = Victor(0)
         self.right_motor = Victor(1)
         self.solenoid = DoubleSolenoid(2, 3)
@@ -32,6 +38,9 @@ class GripperComponent:
         # state
         self._lift_state = None
         self._spread_state = None
+
+        # setup events
+        self._create_event(GripperComponent.EVENTS.gripper_started_moving)
 
     def set_spread_state(self, spread: bool):
         if spread:

@@ -204,9 +204,10 @@ class Jessica(AsyncRobot):
         share = 9
         if self.joystick.getRawButtonPressed(share):
             self.start_command(Reset())
+        """
         if self.joystick.getRawButton(8):
             self.start_command(LiftTo("up"))
-        """
+        
 
 
 if __name__ == '__main__':

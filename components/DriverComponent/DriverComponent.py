@@ -18,6 +18,7 @@ from Command import InstantCommand, Command
 from wpilib.timer import Timer
 from enum import Enum, auto
 import math
+from Events import Events
 
 
 class GearMode:
@@ -26,12 +27,16 @@ class GearMode:
     HIGH = auto()
 
 
-class DriverComponent:
+class DriverComponent(Events):
     CONV_FACTOR = 0.0524 * 0.846
     LINEAR_SAMPLE_RATE = 28
     ANGULAR_SAMPLE_RATE = 2
 
+    class EVENTS(object):
+        driving = "driving"
+
     def __init__(self):
+        Events.__init__(self)
         # left_front = Victor(3)
         left_front = WPI_TalonSRX(6)
         self.left_encoder_motor = left = left_rear = WPI_TalonSRX(1)
@@ -58,11 +63,15 @@ class DriverComponent:
         self.back_distance_sensor.setAutomaticMode(True)
         self.back_distance_sensor.setEnabled(True)
 
+        self._create_event(DriverComponent.EVENTS.driving)
+        # self.add_listener(DriverComponent.EVENTS.driving, lambda: print("driving"))
+
     def set_curve_raw(self, linear, angular):
         if -0.1 < linear < 0.1:
             self.drive_train.curvatureDrive(linear, angular, True)
         else:
             self.drive_train.curvatureDrive(linear, angular, False)
+        self.trigger_event(DriverComponent.EVENTS.driving)
 
     def set_curve(self, linear, angular):
         self.moving_linear.append(linear)
@@ -78,6 +87,7 @@ class DriverComponent:
             self.drive_train.curvatureDrive(linear, a_speed, True)
         else:
             self.drive_train.curvatureDrive(linear, a_speed, False)
+        self.trigger_event(DriverComponent.EVENTS.driving)
 
     def reset_drive_sensors(self):
         self.driver_gyro.reset()

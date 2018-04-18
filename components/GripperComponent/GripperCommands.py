@@ -73,7 +73,6 @@ def toggle_spread() -> InstantCommand:
 
 
 class LiftTo(Command):
-    running = None
 
     def __init__(self, pos: str):
         super().__init__()
@@ -81,11 +80,15 @@ class LiftTo(Command):
         self._speed = 0
 
     def on_start(self):
-        if LiftTo.running is not None:
-            LiftTo.running.finished()
-        if Toggle.running is not None:
-            Toggle.running.finished()
-        LiftTo.running = self
+        RobotMap.gripper_component.trigger_event(GripperComponent.EVENTS.gripper_started_moving, data=self)
+        RobotMap.gripper_component.add_listener(GripperComponent.EVENTS.gripper_started_moving, self.check_if_in_use)
+
+    def check_if_in_use(self, data: GripperComponent.EVENTS.gripper_started_moving_data):
+        if self != data:
+            self.interrupt()
+
+    def on_interrupted(self):
+        print("interupted LiftTo")
 
     def execute(self):
         if -0.02 < RobotMap.gripper_component.pot.get() - self._target_pos < 0.02:
@@ -100,11 +103,9 @@ class LiftTo(Command):
         RobotMap.gripper_component.set_lift_motor(self._speed)
 
     def on_end(self):
-        LiftTo.running = None
-
+        RobotMap.gripper_component.remove_listener(GripperComponent.EVENTS.gripper_started_moving, self.check_if_in_use)
 
 class Toggle(Command):
-    running = None
 
     def __init__(self):
         super().__init__()
@@ -112,12 +113,8 @@ class Toggle(Command):
         self._speed = 0
 
     def on_start(self):
-        if LiftTo.running is not None:
-            LiftTo.running.finished()
-        if Toggle.running is not None:
-            Toggle.running.finished()
-        Toggle.running = self
-
+        RobotMap.gripper_component.trigger_event(GripperComponent.EVENTS.gripper_started_moving, data=self)
+        RobotMap.gripper_component.add_listener(GripperComponent.EVENTS.gripper_started_moving, self.check_if_in_use)
         current_pos = RobotMap.gripper_component.current_lift_state()
         if current_pos == "up":
             self._target_pos = GripperComponent.lift_positions["down"]
@@ -131,8 +128,16 @@ class Toggle(Command):
         speed_s = "speed: " + str(self._speed)
         print("start toggle " + current_pos_s + " | " + target_s + " | " + speed_s)
 
+    def check_if_in_use(self, data: GripperComponent.EVENTS.gripper_started_moving_data):
+        if self != data:
+            print("self: {} | data: {}".format(self, data))
+            self.interrupt()
+
+    def on_interrupted(self):
+        print("interupted toggle")
+
     def execute(self):
-        print("grip execute current: " + str(RobotMap.gripper_component.pot.get()) + "target: " + str(self._target_pos))
+        print("grip execute | current: " + str(RobotMap.gripper_component.pot.get()) + " | target: " + str(self._target_pos))
         if -0.01 < RobotMap.gripper_component.pot.get() - self._target_pos < 0.01:
             RobotMap.gripper_component.set_lift_motor(0)
             self.finished()
@@ -145,5 +150,5 @@ class Toggle(Command):
         RobotMap.gripper_component.set_lift_motor(self._speed)
 
     def on_end(self):
-        Toggle.running = None
+        RobotMap.gripper_component.remove_listener(GripperComponent.EVENTS.gripper_started_moving, self.check_if_in_use)
         print("toggle end")

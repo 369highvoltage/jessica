@@ -19,12 +19,12 @@ class Events(object):
     def add_listener(self, event_name: str, callback: Callable):
         if not (event_name in self._events):
             raise ValueError("there is no event named" + str(event_name))
-        self._events[event_name] += callback
+        self._events[event_name].append(callback)
 
     def add_listeners(self, event_name: str, callbacks: List[Callable]):
         if not (event_name in self._events):
             raise ValueError("there is no event named" + str(event_name))
-        self._events[event_name] += callbacks
+        self._events[event_name].extend(callbacks)
 
     def remove_listener(self, event_name: str, callback: Callable):
         if not (event_name in self._events):

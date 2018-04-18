@@ -10,7 +10,7 @@ class Command(Events):
         on_interrupted = "on_interrupted"
 
     def __init__(self):
-        Events.__init__()
+        Events.__init__(self)
         self._done = False
         self._first = True
         self._interupted = False
@@ -21,8 +21,8 @@ class Command(Events):
             Command.EVENTS.on_interrupted
         ])
         # call start
-        self.add_listeners(Command.EVENTS.on_start, lambda: self.__on_start())
-        self.add_listeners(Command.EVENTS.on_end, lambda: self.__on_end())
+        self.add_listener(Command.EVENTS.on_start, lambda: self.__on_start())
+        self.add_listener(Command.EVENTS.on_end, lambda: self.__on_end())
         self.add_listener(Command.EVENTS.on_execute, lambda: self.__on_execute())
         self.add_listener(Command.EVENTS.on_interrupted, lambda: self.__on_interrupted())
 
@@ -74,7 +74,7 @@ class Command(Events):
 
 class InstantCommand(Command):
     def __init__(self, method: Callable):
-        super().__init__()
+        Command.__init__(self)
         self._instant_method = method
 
     def on_start(self):
