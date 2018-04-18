@@ -29,8 +29,8 @@ class GearMode:
 
 class DriverComponent(Events):
     CONV_FACTOR = 0.0524 * 0.846
-    LINEAR_SAMPLE_RATE = 28
-    ANGULAR_SAMPLE_RATE = 2
+    LINEAR_DECELERATION_THRESHOLD = 0.3
+    ANGULAR_DECELERATION_THRESHOLD = 0.6
 
     PID_PRIMARY = 0
     REMOTE_0 = 0
@@ -62,8 +62,8 @@ class DriverComponent(Events):
         self.left_encoder_motor.setSensorPhase(True)
         self.drive_train.setDeadband(0.1)
 
-        self.moving_linear = [0] * DriverComponent.LINEAR_SAMPLE_RATE
-        self.moving_angular = [0] * DriverComponent.ANGULAR_SAMPLE_RATE
+        self.last_linear_input = 0.0
+        self.last_angular_input = 0.0
 
         self.back_distance_sensor = Ultrasonic(7, 8)
         self.back_distance_sensor.setAutomaticMode(True)
@@ -94,6 +94,21 @@ class DriverComponent(Events):
         #     DriverComponent.REMOTE_1,
         #     DriverComponent.TimeOut_ms
         # )
+    
+    def clamp_deceleration(self, current_input, last_input, threshold):
+        # Check for deceleration (current input should be closer to 0.0 than last input)
+        if abs(current_input) < abs(last_input):
+            last_input -= min(
+                threshold,
+                max(
+                    -threshold,
+                    current_input - last_input
+                )
+            )
+        else:
+            last_input = current_input
+        
+        return last_input
 
     def set_curve_raw(self, linear, angular):
         if -0.1 < linear < 0.1:
@@ -103,20 +118,9 @@ class DriverComponent(Events):
         self.trigger_event(DriverComponent.EVENTS.driving)
 
     def set_curve(self, linear, angular):
-        self.moving_linear.append(linear)
-        self.moving_angular.append(angular)
-        if len(self.moving_linear) > DriverComponent.LINEAR_SAMPLE_RATE:
-            self.moving_linear.pop(0)
-        if len(self.moving_angular) > DriverComponent.ANGULAR_SAMPLE_RATE:
-            self.moving_angular.pop(0)
-        l_speed = sum([x / DriverComponent.LINEAR_SAMPLE_RATE for x in self.moving_linear])
-        a_speed = sum([x / DriverComponent.ANGULAR_SAMPLE_RATE for x in self.moving_angular])
-        # l_speed = math.sin(l_speed * math.pi/2)
-        if -0.1 < l_speed < 0.1:
-            self.drive_train.curvatureDrive(linear, a_speed, True)
-        else:
-            self.drive_train.curvatureDrive(linear, a_speed, False)
-        self.trigger_event(DriverComponent.EVENTS.driving)
+        self.last_linear_input = self.clamp_deceleration(linear, self.last_linear_input, DriverComponent.LINEAR_DECELERATION_THRESHOLD)
+        self.last_angular_input = self.clamp_deceleration(angular, self.last_angular_input, DriverComponent.ANGULAR_DECELERATION_THRESHOLD)
+        self.set_curve_raw(self.last_linear_input, self.last_angular_input)
 
     def reset_drive_sensors(self):
         self.driver_gyro.reset()
