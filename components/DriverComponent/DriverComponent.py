@@ -70,11 +70,11 @@ class DriverComponent:
             self.moving_angular.pop(0)
         l_speed = sum([x / DriverComponent.LINEAR_SAMPLE_RATE for x in self.moving_linear])
         a_speed = sum([x / DriverComponent.ANGULAR_SAMPLE_RATE for x in self.moving_angular])
-        # l_speed = math.sin(l_speed * math.pi/2)
+        l_speed = math.sin(l_speed * math.pi/2)
         if -0.1 < l_speed < 0.1:
-            self.drive_train.curvatureDrive(linear, a_speed, True)
+            self.drive_train.curvatureDrive(l_speed, a_speed, True)
         else:
-            self.drive_train.curvatureDrive(linear, a_speed, False)
+            self.drive_train.curvatureDrive(l_speed, a_speed, False)
 
     def reset_drive_sensors(self):
         self.driver_gyro.reset()

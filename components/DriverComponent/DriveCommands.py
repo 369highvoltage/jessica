@@ -19,7 +19,7 @@ def toggle_gear() -> InstantCommand:
 
 
 def curve_drive(linear: float, angular: float) -> InstantCommand:
-    return InstantCommand(lambda: RobotMap.driver_component.set_curve(linear, angular))
+    return InstantCommand(lambda: RobotMap.driver_component.set_curve_raw(linear, angular))
 
 
 class DriveByTime(Command):
@@ -53,12 +53,14 @@ angular_tolerance = 2
 
 
 class DriveByDistance(Command):
-    def __init__(self, inches: float, speed: float):
+    def __init__(self, inches: float, speed: float, timeout = 0.0):
         super().__init__()
         angular_gains = (0.02, 0.0001, 0.02, 0.0)
         self._target_distance = inches
         self._speed = speed
         self._angular = 0
+
+        self.timer = Timer()
 
         self.angular_controller = PIDController(*angular_gains, RobotMap.driver_component.driver_gyro, output=self)
         self.angular_controller.setInputRange(-360, 360)
@@ -66,17 +68,18 @@ class DriveByDistance(Command):
         self.angular_controller.setAbsoluteTolerance(0.5)
 
         self.angular_controller.setSetpoint(0)
+        self._timeout = timeout
 
     def pidWrite(self, output):
         self._angular = output
 
     def on_start(self):
         RobotMap.driver_component.reset_drive_sensors()
-
+        self.timer.start()
         self.angular_controller.enable()
 
     def execute(self):
-        if abs(RobotMap.driver_component.current_distance) >= abs(self._target_distance):
+        if (abs(RobotMap.driver_component.current_distance) >= abs(self._target_distance)) or (self._timeout > 0 and self.timer.hasPeriodPassed(self._timeout)):
             RobotMap.driver_component.drive_train.curvatureDrive(0, 0, False)
             self.finished()
             return
@@ -85,6 +88,7 @@ class DriveByDistance(Command):
 
     def on_end(self):
         self.angular_controller.disable()
+        self.timer.stop()
 
 
 class Turn(Command):

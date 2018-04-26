@@ -35,6 +35,7 @@ class Jessica(AsyncRobot):
         self.autoSideChooser.addObject("right", "R")
         self.autoSideChooser.addObject("middle", "M")
         SmartDashboard.putData("Side Chooser", self.autoSideChooser)
+        RobotMap.driver_component.set_low_gear()
 
     def robotPeriodic(self):
         SmartDashboard.putNumber("driver/current_distance", RobotMap.driver_component.current_distance)
