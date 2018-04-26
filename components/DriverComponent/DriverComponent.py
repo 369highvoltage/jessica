@@ -11,15 +11,25 @@ from wpilib import \
     Victor, \
     Compressor, \
     AnalogInput, \
-    Ultrasonic
-from ctre import WPI_TalonSRX, FeedbackDevice, RemoteSensorSource, PigeonIMU, ParamEnum
+    Ultrasonic, \
+    PIDController
+from ctre import WPI_TalonSRX, FeedbackDevice, RemoteSensorSource, PigeonIMU, ParamEnum, ControlMode, NeutralMode
 from wpilib.drive import DifferentialDrive
 from Command import InstantCommand, Command
 from wpilib.timer import Timer
 from enum import Enum, auto
 import math
 from Events import Events
+from pid_helpers import Gains, PIDOutput, PIDSource
 
+class FollowerType(object):
+    PercentOutput = int(0)
+    AuxOutput1 = int(1)
+
+class DemandType(object):
+    Neutral = int(0)
+    AuxPID = int(1)
+    ArbitraryFeedForward = int(2)
 
 class StatusFrame(object):
     Status_1_General = 0x1400
@@ -49,20 +59,12 @@ class GearMode:
     LOW = auto()
     HIGH = auto()
 
-class Gains(object):
-    def __init__(self, p: float = 0.0, i: float = 0.0, d: float = 0.0, f: float = 0.0, intergral_zone: int = 0, peak_out: float = 0.0):
-        self.p = p
-        self.i = i
-        self.d = d
-        self.f = f
-        self.intergral_zone = intergral_zone
-        self.peak_out = peak_out
-
 
 class DriverComponent(Events):
+    # CONV_FACTOR = 0.0524
     CONV_FACTOR = 0.0524 * 0.846
-    LINEAR_DECELERATION_THRESHOLD = 0.3
-    ANGULAR_DECELERATION_THRESHOLD = 0.6
+    LINEAR_DECELERATION_THRESHOLD = 0.05
+    ANGULAR_DECELERATION_THRESHOLD = 0.3
 
     PID_PRIMARY = 0
     REMOTE_0 = 0
@@ -71,6 +73,8 @@ class DriverComponent(Events):
     TimeOut_ms = 0
     pigeonUnitsPerRotation = 8192
     turnTravelUnitsPerRotation = 3600
+    sensor_units_per_rotation = 1440
+    rotations_to_travel = 6
 
     nuetral_deadband = 0.1
 
@@ -83,9 +87,9 @@ class DriverComponent(Events):
     slot_turning = slot_1
     slot_velocity = slot_2
     slot_motprof = slot_3
-
-    gains_distance = Gains(p=0.0, i=0.0, d=0.0, f=0.0, intergral_zone=100, peak_out=0.50)
-    gains_turning = Gains(p=0.0, i=0.0, d=0.0, f=0.0, intergral_zone=200, peak_out=1.0)
+    
+    gains_distance = Gains(p=0.1, i=0.0, d=0.0, f=0.0, intergral_zone=100, peak_out=0.50)
+    gains_turning = Gains(p=0.02, i=0.0001, d=0.02, f=0.0)
     gains_velocity = Gains(p=0.0, i=0.0, d=0.0, f=0.0, intergral_zone=300, peak_out=0.50)
     gains_motprof = Gains(p=0.0, i=0.0, d=0.0, f=0.0, intergral_zone=400, peak_out=1.0)
 
@@ -102,12 +106,16 @@ class DriverComponent(Events):
         self.pigeon_talon = left_front = WPI_TalonSRX(6)
         self.left_encoder_motor = left = left_rear = WPI_TalonSRX(1)
         self.right_encoder_motor = right = right_front = WPI_TalonSRX(4)
+        # self.left_encoder_motor = left_rear = WPI_TalonSRX(1)
+        # self.right_encoder_motor = right_front = WPI_TalonSRX(4)
         # right_rear = Victor(6)
         right_rear = WPI_TalonSRX(7)
         self.pigeon = PigeonIMU(self.pigeon_talon)
 
-        left_front.follow(left_rear)
-        right_rear.follow(right_front)
+        # left = SpeedControllerGroup(left_rear, left_front)
+        # right = SpeedControllerGroup(right_rear, right_front)
+        # left_front.follow(left_rear)
+        # right_rear.follow(right_front)
         
         self.gear_solenoid = DoubleSolenoid(0, 1)
         self.driver_gyro = ADXRS450_Gyro()
@@ -115,7 +123,7 @@ class DriverComponent(Events):
         self.drive_train = DifferentialDrive(left, right)
 
         # setup encoders
-        self.left_encoder_motor.setSensorPhase(True)
+        self.left_encoder_motor.setSensorPhase(False)
         self.drive_train.setDeadband(0.1)
 
         self.last_linear_input = 0.0
@@ -125,9 +133,45 @@ class DriverComponent(Events):
         self.back_distance_sensor.setAutomaticMode(True)
         self.back_distance_sensor.setEnabled(True)
 
+        self.front_distance_sensor = Ultrasonic(5, 6)
+        self.front_distance_sensor.setAutomaticMode(True)
+        self.front_distance_sensor.setEnabled(True)
+
         self._create_event(DriverComponent.EVENTS.driving)
+        
+        self._angular_pid = 0.0
+
+        def set_angular(output):
+            self._angular_pid = output
+
+        def set_distance(output):
+            self._linear_pid = output
+
+        self._angular_controller = PIDController(
+            DriverComponent.gains_turning.p,
+            DriverComponent.gains_turning.i,
+            DriverComponent.gains_turning.d,
+            self.driver_gyro,
+            output=PIDOutput(set_angular)
+        )
+        self._angular_controller.setInputRange(-360, 360)
+        self._angular_controller.setOutputRange(-1, 1)
+        self._angular_controller.setAbsoluteTolerance(0.5)
+
+        self._linear_pid = 0.0
+
+        self._distance_controller = PIDController(
+            DriverComponent.gains_turning.p,
+            DriverComponent.gains_turning.i,
+            DriverComponent.gains_turning.d,
+            PIDSource(lambda: self.current_distance),
+            output=PIDOutput(set_distance)
+        )
+        self._distance_controller.setOutputRange(-1, 1)
+        self._distance_controller.setAbsoluteTolerance(0.5)
 
     def setup_talons(self):
+        """
         # setup left encoder
         self.left_encoder_motor.configSelectedFeedbackSensor(
             FeedbackDevice.QuadEncoder,
@@ -227,9 +271,9 @@ class DriverComponent(Events):
         )
 
         # _talonRght.configMotionAcceleration(1000, Constants.kTimeoutMs);
-        self.right_encoder_motor.configMotionAcceleration(1000, DriverComponent.TimeOut_ms)
+        # self.right_encoder_motor.configMotionAcceleration(1000, DriverComponent.TimeOut_ms)
         # _talonRght.configMotionCruiseVelocity(1000, Constants.kTimeoutMs);
-        self.right_encoder_motor.configMotionCruiseVelocity(1000, DriverComponent.TimeOut_ms)
+        # self.right_encoder_motor.configMotionCruiseVelocity(1000, DriverComponent.TimeOut_ms)
 
         # /* max out the peak output (for all modes).  However you can
         #     * limit the output of a given PID object with configClosedLoopPeakOutput().
@@ -243,170 +287,42 @@ class DriverComponent(Events):
         # _talonRght.configPeakOutputReverse(-1.0, Constants.kTimeoutMs);
         self.right_encoder_motor.configPeakOutputReverse(-1.0, DriverComponent.TimeOut_ms)
 
-        # /* distance servo */
-        # _talonRght.config_kP(Constants.kSlot_Distanc, Constants.kGains_Distanc.kP, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kP(
+        self.left_encoder_motor.configAllowableClosedloopError(DriverComponent.slot_distance, int(2 / DriverComponent.CONV_FACTOR), DriverComponent.TimeOut_ms)
+        self.right_encoder_motor.configAllowableClosedloopError(DriverComponent.slot_distance, int(2 / DriverComponent.CONV_FACTOR), DriverComponent.TimeOut_ms)
+
+        # distance servo
+        self.config_talon_pid(
+            self.right_encoder_motor,
             DriverComponent.slot_distance,
-            DriverComponent.gains_distance.p,
-            DriverComponent.TimeOut_ms
+            DriverComponent.gains_distance
         )
-        # _talonRght.config_kI(Constants.kSlot_Distanc, Constants.kGains_Distanc.kI, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kI(
-            DriverComponent.slot_distance,
-            DriverComponent.gains_distance.i,
-            DriverComponent.TimeOut_ms
+
+        # turn servo
+        self.config_talon_pid(
+            self.right_encoder_motor,
+            DriverComponent.slot_turning,
+            DriverComponent.gains_turning
         )
-        # _talonRght.config_kD(Constants.kSlot_Distanc, Constants.kGains_Distanc.kD, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kD(
-            DriverComponent.slot_distance,
-            DriverComponent.gains_distance.d,
-            DriverComponent.TimeOut_ms
+
+        # magic servo
+        self.config_talon_pid(
+            self.right_encoder_motor,
+            DriverComponent.slot_motprof,
+            DriverComponent.gains_motprof
         )
-        # _talonRght.config_kF(Constants.kSlot_Distanc, Constants.kGains_Distanc.kF, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kF(
-            DriverComponent.slot_distance,
-            DriverComponent.gains_distance.f,
-            DriverComponent.TimeOut_ms
+
+        # velocity servo
+        self.config_talon_pid(
+            self.right_encoder_motor,
+            DriverComponent.slot_velocity,
+            DriverComponent.gains_velocity
         )
-        # _talonRght.config_IntegralZone(Constants.kSlot_Distanc, (int)Constants.kGains_Distanc.kIzone, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_IntegralZone(
-            DriverComponent.slot_distance,
-            DriverComponent.gains_distance.intergral_zone,
-            DriverComponent.TimeOut_ms
-        )
+        """
+
+        self.left_encoder_motor.setNeutralMode(NeutralMode.Brake)
+        self.right_encoder_motor.setNeutralMode(NeutralMode.Brake)
         
-        # _talonRght.configClosedLoopPeakOutput(	Constants.kSlot_Distanc,
-        #                                         Constants.kGains_Distanc.kPeakOutput,
-        #                                         Constants.kTimeoutMs);
-        self.right_encoder_motor.configClosedLoopPeakOutput(
-            DriverComponent.slot_distance,
-            DriverComponent.gains_distance.peak_out,
-            DriverComponent.TimeOut_ms
-        )
-
-        # /* turn servo */
-        # _talonRght.config_kP(Constants.kSlot_Turning, Constants.kGains_Turning.kP, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kP(
-            DriverComponent.slot_turning,
-            DriverComponent.gains_turning.p,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.config_kI(Constants.kSlot_Turning, Constants.kGains_Turning.kI, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kI(
-            DriverComponent.slot_turning,
-            DriverComponent.gains_turning.i,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.config_kD(Constants.kSlot_Turning, Constants.kGains_Turning.kD, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kD(
-            DriverComponent.slot_turning,
-            DriverComponent.gains_turning.d,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.config_kF(Constants.kSlot_Turning, Constants.kGains_Turning.kF, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kF(
-            DriverComponent.slot_turning,
-            DriverComponent.gains_turning.f,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.config_IntegralZone(Constants.kSlot_Turning, (int)Constants.kGains_Turning.kIzone, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_IntegralZone(
-            DriverComponent.slot_turning,
-            DriverComponent.gains_turning.intergral_zone,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.configClosedLoopPeakOutput(	Constants.kSlot_Turning,
-        #                                         Constants.kGains_Turning.kPeakOutput,
-        #                                         Constants.kTimeoutMs);
-        self.right_encoder_motor.configClosedLoopPeakOutput(
-            DriverComponent.slot_turning,
-            DriverComponent.gains_turning.peak_out,
-            DriverComponent.TimeOut_ms
-        )
-
-        # /* magic servo */
-        # _talonRght.config_kP(Constants.kSlot_MotProf, Constants.kGains_MotProf.kP, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kP(
-            DriverComponent.slot_motprof,
-            DriverComponent.gains_motprof.p,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.config_kI(Constants.kSlot_MotProf, Constants.kGains_MotProf.kI, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kI(
-            DriverComponent.slot_motprof,
-            DriverComponent.gains_motprof.i,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.config_kD(Constants.kSlot_MotProf, Constants.kGains_MotProf.kD, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kD(
-            DriverComponent.slot_motprof,
-            DriverComponent.gains_motprof.d,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.config_kF(Constants.kSlot_MotProf, Constants.kGains_MotProf.kF, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kF(
-            DriverComponent.slot_motprof,
-            DriverComponent.gains_motprof.f,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.config_IntegralZone(Constants.kSlot_MotProf, (int)Constants.kGains_MotProf.kIzone, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_IntegralZone(
-            DriverComponent.slot_motprof,
-            DriverComponent.gains_motprof.intergral_zone,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.configClosedLoopPeakOutput(	Constants.kSlot_MotProf,
-        #                                         Constants.kGains_MotProf.kPeakOutput,
-        #                                         Constants.kTimeoutMs);
-        self.right_encoder_motor.configClosedLoopPeakOutput(
-            DriverComponent.slot_motprof,
-            DriverComponent.gains_motprof.peak_out,
-            DriverComponent.TimeOut_ms
-        )
-
-        # /* velocity servo */
-        # _talonRght.config_kP(Constants.kSlot_Velocit, Constants.kGains_Velocit.kP, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kP(
-            DriverComponent.slot_velocity,
-            DriverComponent.gains_velocity.p,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.config_kI(Constants.kSlot_Velocit, Constants.kGains_Velocit.kI, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kI(
-            DriverComponent.slot_velocity,
-            DriverComponent.gains_velocity.i,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.config_kD(Constants.kSlot_Velocit, Constants.kGains_Velocit.kD, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kD(
-            DriverComponent.slot_velocity,
-            DriverComponent.gains_velocity.d,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.config_kF(Constants.kSlot_Velocit, Constants.kGains_Velocit.kF, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_kF(
-            DriverComponent.slot_velocity,
-            DriverComponent.gains_velocity.f,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.config_IntegralZone(Constants.kSlot_Velocit, (int)Constants.kGains_Velocit.kIzone, Constants.kTimeoutMs);
-        self.right_encoder_motor.config_IntegralZone(
-            DriverComponent.slot_velocity,
-            DriverComponent.gains_velocity.intergral_zone,
-            DriverComponent.TimeOut_ms
-        )
-        # _talonRght.configClosedLoopPeakOutput(	Constants.kSlot_Velocit,
-        #                                         Constants.kGains_Velocit.kPeakOutput,
-        #                                         Constants.kTimeoutMs);
-        self.right_encoder_motor.configClosedLoopPeakOutput(
-            DriverComponent.slot_velocity,
-            DriverComponent.gains_velocity.peak_out,
-            DriverComponent.TimeOut_ms
-        )
-
-        # _talonLeft.setNeutralMode(NeutralMode.Brake);
-        # _talonRght.setNeutralMode(NeutralMode.Brake);
-        
+        """
         # /* 1ms per loop.  PID loop can be slowed down if need be.
         #     * For example,
         #     * - if sensor updates are too slow
@@ -439,17 +355,31 @@ class DriverComponent(Events):
         # _talonRght.configAuxPIDPolarity(false, Constants.kTimeoutMs);
         self.right_encoder_motor.configAuxPIDPolarity(False, DriverComponent.TimeOut_ms)
         self.reset_drive_sensors()
+        """
+        
+    
+    def config_talon_pid(self, motor: WPI_TalonSRX, slot: int, gains: Gains):
+        motor.config_kP(slot, gains.p, DriverComponent.TimeOut_ms)
+        
+        motor.config_kI(slot, gains.i, DriverComponent.TimeOut_ms)
+        
+        motor.config_kD(slot, gains.d, DriverComponent.TimeOut_ms)
+        
+        motor.config_kF(slot, gains.f, DriverComponent.TimeOut_ms)
+        
+        # motor.config_IntegralZone(slot, gains.intergral_zone, DriverComponent.TimeOut_ms)
 
+        # motor.configClosedLoopPeakOutput(slot, gains.peak_out, DriverComponent.TimeOut_ms)
+    
+    def neutralMotors(self):
+        self.left_encoder_motor.neutralOutput()
+        self.right_encoder_motor.neutralOutput()
+    
     def clamp_deceleration(self, current_input, last_input, threshold):
-        # Check for deceleration (current input should be closer to 0.0 than last input)
-        if abs(current_input) < abs(last_input):
-            last_input -= min(
-                threshold,
-                max(
-                    -threshold,
-                    current_input - last_input
-                )
-            )
+        # Clamp huge swings in velocity.
+        if abs(current_input - last_input) > threshold:
+            last_input -= min(threshold, max(-threshold, last_input - current_input))
+        # General clamp for any other acceleration.
         else:
             last_input = current_input
         
@@ -460,22 +390,88 @@ class DriverComponent(Events):
             self.drive_train.curvatureDrive(linear, angular, True)
         else:
             self.drive_train.curvatureDrive(linear, angular, False)
-        self.trigger_event(DriverComponent.EVENTS.driving)
+    """
+    def set_percent_output(self, linear: float, angular: float):
+        self.left_encoder_motor.set(ControlMode.PercentOutput, linear, DemandType.ArbitraryFeedForward, angular)
+        self.right_encoder_motor.set(ControlMode.PercentOutput, linear, DemandType.ArbitraryFeedForward, -angular)
+    
+    def set_velocity_mode(self):
+        self.neutralMotors()
+        self.reset_drive_sensors()
+
+        self.right_encoder_motor.selectProfileSlot(DriverComponent.slot_velocity, DriverComponent.PID_PRIMARY)
+        self.right_encoder_motor.selectProfileSlot(DriverComponent.slot_turning, DriverComponent.PID_TURN)
+
+    def set_velocity(self, linear: float, angular: float):
+        target_rpm = linear * 500
+        target_units_per_100ms = target_rpm * DriverComponent.sensor_units_per_rotation / 600.0
+
+        heading_units = DriverComponent.turnTravelUnitsPerRotation * -angular
+
+        # set velocity mode
+
+        self.right_encoder_motor.set(ControlMode.Velocity, target_units_per_100ms, DemandType.AuxPID, heading_units)
+        self.left_encoder_motor.follow(self.right_encoder_motor, FollowerType.AuxOutput1)
+
+    def set_position_mode(self):
+        self.neutralMotors()
+        self.reset_drive_sensors()
+
+        self.right_encoder_motor.selectProfileSlot(DriverComponent.slot_distance, DriverComponent.PID_PRIMARY)
+        self.right_encoder_motor.selectProfileSlot(DriverComponent.slot_turning, DriverComponent.PID_TURN)
+
+    def set_position(self, inches: float):
+        target_sensor_units = 36 / DriverComponent.CONV_FACTOR
+        target_turn = 0
+
+        print("closed loop error: {}".format(self.right_encoder_motor.getClosedLoopError(DriverComponent.slot_distance)))
+        # print("closed loop target: {}".format(self.right_encoder_motor.getClosedLoopTarget(DriverComponent.slot_distance)))
+
+        self.right_encoder_motor.set(ControlMode.Position, target_sensor_units)
+        self.left_encoder_motor.follow(self.right_encoder_motor, FollowerType.AuxOutput1)
+    """
+
+    def update_move_to_position(self, inches: float):
+        self._distance_controller.setSetpoint(inches)
+        self._angular_controller.setSetpoint(0)
+        if not self._distance_controller.isEnabled():
+            self._distance_controller.enable()
+        if not self._angular_controller.isEnabled():
+            self._angular_controller.enable()
+        self.set_curve(self._linear_pid, self._angular_pid)
+        
+
+    def update_turn_angle(self, degrees: float):
+        self._angular_controller.setSetpoint(degrees)
+        if not self._angular_controller.isEnabled():
+            self._angular_controller.enable()
+        self.set_curve(0, self._angular_pid)
+
+    def disable_pid(self):
+        if self._angular_controller.isEnabled():
+            self._angular_controller.disable()
+        if self._distance_controller.isEnabled():
+            self._distance_controller.disable()
 
     def set_curve(self, linear, angular):
+        self.disable_pid()
         self.last_linear_input = self.clamp_deceleration(linear, self.last_linear_input, DriverComponent.LINEAR_DECELERATION_THRESHOLD)
         self.last_angular_input = self.clamp_deceleration(angular, self.last_angular_input, DriverComponent.ANGULAR_DECELERATION_THRESHOLD)
         self.set_curve_raw(self.last_linear_input, self.last_angular_input)
 
     def reset_drive_sensors(self):
+        self.disable_pid()
         self.left_encoder_motor.getSensorCollection().setQuadraturePosition(0, DriverComponent.TimeOut_ms)
         self.right_encoder_motor.getSensorCollection().setQuadraturePosition(0, DriverComponent.TimeOut_ms)
+        self.driver_gyro.reset()
         self.pigeon.setYaw(0, DriverComponent.TimeOut_ms)
         self.pigeon.setAccumZAngle(0, DriverComponent.TimeOut_ms)
 
     @property
     def current_distance(self):
         return DriverComponent.CONV_FACTOR * self.left_encoder_motor.getSelectedSensorPosition(0)
+        # return DriverComponent.CONV_FACTOR * self.right_encoder_motor.getSelectedSensorPosition(0)
+        # return DriverComponent.CONV_FACTOR * ((self.left_encoder_motor.getSelectedSensorPosition(0) + self.right_encoder_motor.getSelectedSensorPosition(0)) / 2)
 
     def current_gear(self):
         if self.gear_solenoid.get() is DoubleSolenoid.Value.kForward:

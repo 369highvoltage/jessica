@@ -18,6 +18,7 @@ class GripperComponent(Events):
 
     lift_positions = {
         "up": 0.2,
+        # "middle": 197,
         "down": 0.595
         # "up": 2.2,
         # "down": 4.0
@@ -61,6 +62,7 @@ class GripperComponent(Events):
         self.right_motor.set(-right)
 
     def set_lift_motor(self, speed):
+        print("grip_speed: {}".format(str(speed)))
         self.lift_motor.set(speed)
 
     def current_lift_state(self) -> str:

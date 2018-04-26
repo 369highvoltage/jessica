@@ -27,8 +27,8 @@ class MoveToPosition(Command):
         # start moving towards the target
         RobotMap.lifter_component.lift_to_distance(self._target_position)
         # check if another command is trying to move the lifter
-        RobotMap.lifter_component.add_listener(LifterComponent.EVENTS.on_control_move, self.interrupt)
-        RobotMap.lifter_component.add_listener(LifterComponent.EVENTS.on_manual_move, self.interrupt)
+        # RobotMap.lifter_component.add_listener(LifterComponent.EVENTS.on_control_move, self.interrupt)
+        # RobotMap.lifter_component.add_listener(LifterComponent.EVENTS.on_manual_move, self.interrupt)
         print("start move to position command "+ self._position)
 
     def execute(self):
@@ -38,8 +38,8 @@ class MoveToPosition(Command):
     def on_end(self):
         if not self._interupted:
             RobotMap.lifter_component.stop_lift()
-        RobotMap.lifter_component.remove_listener(LifterComponent.EVENTS.on_control_move, self.interrupt)
-        RobotMap.lifter_component.remove_listener(LifterComponent.EVENTS.on_manual_move, self.interrupt)
+        # RobotMap.lifter_component.remove_listener(LifterComponent.EVENTS.on_control_move, self.interrupt)
+        # RobotMap.lifter_component.remove_listener(LifterComponent.EVENTS.on_manual_move, self.interrupt)
         print("end move to position command")
 
 
@@ -58,13 +58,16 @@ def move_down_instant() -> InstantCommand:
 
 
 class Reset(Command):
+    def __init__(self, speed: float = 0.25):
+        Command.__init__(self)
+        self.speed = -speed
+
     def on_start(self):
         print("start reset command")
 
     def execute(self):
-        speed = -0.25
-        RobotMap.lifter_component.set_elevator_speed(speed)
-        RobotMap.lifter_component.set_carriage_speed(speed)
+        RobotMap.lifter_component.set_elevator_speed(self.speed)
+        RobotMap.lifter_component.set_carriage_speed(self.speed)
         if RobotMap.lifter_component.elevator_bottom_switch.get() \
                 and RobotMap.lifter_component.carriage_bottom_switch.get():
             RobotMap.lifter_component.reset_sensors()

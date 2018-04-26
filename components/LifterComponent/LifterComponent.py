@@ -11,7 +11,7 @@ from wpilib import \
     Victor, \
     Compressor, \
     AnalogInput
-from ctre import WPI_TalonSRX, NeutralMode, FeedbackDevice, ControlMode
+from ctre import WPI_TalonSRX, NeutralMode, FeedbackDevice, ControlMode, TalonSRX
 from Events import Events
 
 
@@ -70,7 +70,7 @@ class LifterComponent(Events):
     }
 
     def __init__(self):
-        Events.__init__()
+        Events.__init__(self)
         self.elevator_motor = WPI_TalonSRX(5)
         self.elevator_bottom_switch = DigitalInput(9)
 
@@ -113,6 +113,10 @@ class LifterComponent(Events):
         self.elevator_motor.config_kI(0, LifterComponent.ELEVATOR_kI, LifterComponent.TIMEOUT_MS)
         self.elevator_motor.config_kD(0, LifterComponent.ELEVATOR_kD, LifterComponent.TIMEOUT_MS)
 
+        # self.elevator_motor.setCurrentLimit()
+        # self.elevator_motor.EnableCurrentLimit()
+        # self.elevator_motor.configVoltageCompSaturation(4, LifterComponent.TIMEOUT_MS)
+
         # configure carriage motor and encoder
 
         self.carriage_motor.setNeutralMode(NeutralMode.Brake)
@@ -140,6 +144,10 @@ class LifterComponent(Events):
         self.carriage_motor.config_kP(0, LifterComponent.ELEVATOR_kP, LifterComponent.TIMEOUT_MS)
         self.carriage_motor.config_kI(0, LifterComponent.ELEVATOR_kI, LifterComponent.TIMEOUT_MS)
         self.carriage_motor.config_kD(0, LifterComponent.ELEVATOR_kD, LifterComponent.TIMEOUT_MS)
+
+        # self.carriage_motor.setCurrentLimit()
+        # self.carriage_motor.EnableCurrentLimit()
+        # self.carriage_motor.configVoltageCompSaturation(4, LifterComponent.TIMEOUT_MS)
 
     def set_elevator_speed(self, speed):
         if (speed > 0 and self.current_elevator_position >= LifterComponent.ELEVATOR_MAX_HEIGHT - 2) \

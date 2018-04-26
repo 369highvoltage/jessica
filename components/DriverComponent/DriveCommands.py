@@ -19,7 +19,7 @@ def toggle_gear() -> InstantCommand:
 
 
 def curve_drive(linear: float, angular: float) -> InstantCommand:
-    return InstantCommand(lambda: RobotMap.driver_component.set_curve_raw(linear, angular))
+    return InstantCommand(lambda: RobotMap.driver_component.set_curve(linear, angular))
 
 
 class DriveByTime(Command):
@@ -37,6 +37,7 @@ class DriveByTime(Command):
         RobotMap.driver_component.set_curve(self._speed, -RobotMap.driver_component.driver_gyro.getAngle()*0.2)
         if self.timer.hasPeriodPassed(self._target_seconds):
             RobotMap.driver_component.set_curve(0, 0)
+            RobotMap.driver_component.neutralMotors()
             self.finished()
 
     def on_end(self):
@@ -53,9 +54,10 @@ angular_tolerance = 2
 
 
 class DriveByDistance(Command):
-    def __init__(self, inches: float, speed: float):
+    def __init__(self, inches: float, speed: float, timeout:float = 0):
         super().__init__()
         angular_gains = (0.02, 0.0001, 0.02, 0.0)
+        linear_gains = (0.02, 0.0, 0.0, 0.0)
         self._target_distance = inches
         self._speed = speed
         self._angular = 0
@@ -67,23 +69,30 @@ class DriveByDistance(Command):
 
         self.angular_controller.setSetpoint(0)
 
+        self._timeout = timeout
+        self.timer = Timer()
+
     def pidWrite(self, output):
         self._angular = output
 
     def on_start(self):
+        self.timer.start()
+
         RobotMap.driver_component.reset_drive_sensors()
 
         self.angular_controller.enable()
 
     def execute(self):
-        if abs(RobotMap.driver_component.current_distance) >= abs(self._target_distance):
+        if abs(RobotMap.driver_component.current_distance) >= abs(self._target_distance) or (self._timeout != 0 and self.timer.hasPeriodPassed(self._timeout)):
             RobotMap.driver_component.drive_train.curvatureDrive(0, 0, False)
+            RobotMap.driver_component.neutralMotors()
             self.finished()
             return
 
         RobotMap.driver_component.drive_train.curvatureDrive(self._speed, self._angular, False)
 
     def on_end(self):
+        self.timer.stop()
         self.angular_controller.disable()
 
 
@@ -112,6 +121,7 @@ class Turn(Command):
     def execute(self):
         if self.angular_controller.onTarget():
             RobotMap.driver_component.drive_train.curvatureDrive(0, 0, False)
+            RobotMap.driver_component.neutralMotors()
             self.finished()
             return
         RobotMap.driver_component.drive_train.curvatureDrive(0, self._angular, True)
