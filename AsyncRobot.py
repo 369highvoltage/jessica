@@ -8,6 +8,7 @@
 
 import asyncio
 import hal
+import logging
 
 from wpilib.livewindow import LiveWindow
 from wpilib.smartdashboard import SmartDashboard
@@ -26,87 +27,35 @@ class AsyncRobot(IterativeRobotBase):
 
     The AsyncRobot class is intended to be subclassed by a user creating a robot program.
 
-    The asyncio Event loop polls the notifier instance, and schedules loopFunc() and periodic()
+    The asyncio Event loop schedules loopFunc() and periodic()
     functions, instead of being run directly.
-    
-    loopFunc() has been overidden to accept the event loop and event signalling objects.
     """
     DEFAULT_PERIOD = .02
+    logger = logging.getLogger("robot")
 
     def __init__(self):
         super().__init__()
         hal.report(hal.UsageReporting.kResourceType_Framework, hal.UsageReporting.kFramework_Iterative)
 
-        self.period = AsyncRobot.DEFAULT_PERIOD
-        # Prevents loop from starting if user calls setPeriod() in robotInit()
-        self.startLoop = False
-
-        self._expirationTime = 0
         self._loop = asyncio.get_event_loop()
-        self._interrupted = asyncio.Event()
-
-        self._notifier = hal.initializeNotifier()
-
         self._active_commands = []
-
-        Resource._add_global_resource(self)
-
-    # python-specific
-
-    def free(self) -> None:
-        hal.stopNotifier(self._notifier)
-        hal.cleanNotifier(self._notifier)
-        self._loop.stop()
-        self._loop.close()
 
     def startCompetition(self) -> None:
         """Provide an alternate "main loop" via startCompetition()"""
         self.robotInit()
-
         hal.observeUserProgramStarting()
 
-        self.startLoop = True
-
-        self._expirationTime = RobotController.getFPGATime() * 1e-6 + self.period
-        self._updateAlarm()
-
         # Loop forever, calling the appropriate mode-dependent function
-        self._loop.run_until_complete(self._pollTimer(self._loop))
-
-    def setPeriod(self, period: float) -> None:
-        """Set time period between calls to Periodic() functions.
-
-        :param period: Period in seconds
-        """
-        self.period = period
-
-        if self.startLoop:
-            self._expirationTime = RobotController.getFPGATime() * 1e-6 + self.period
-            self._updateAlarm()
+        self._loop.run_until_complete(self._run_robot())
 
     def getEventLoop(self):
         """Use this function to access the event loop in robot.py"""
         return self._loop
 
-    def getPeriod(self):
-        """Get time period between calls to Periodic() functions."""
-        return self.period
-
-    async def _pollTimer(self, loop):
+    async def _run_robot(self):
         while True:
-            """Coroutine. Polls the hardware FPGA Timer"""
-            # If event flag is set:
-            if not hal.waitForNotifierAlarm(self._notifier) == 0:
-                # Run loopFunc()
-                self._loop.call_soon(self.loopFunc)
-                self._expirationTime += self.period
-                self._updateAlarm()
-
-            # Poll more often than the Notifier updates.
-            await asyncio.sleep(self.period/2)
-
-    def _updateAlarm(self) -> None:
-        hal.updateNotifierAlarm(self._notifier, int(self._expirationTime * 1e6))
+            self.loopFunc()
+            await asyncio.sleep(AsyncRobot.DEFAULT_PERIOD)
 
     def _run_commands(self):
         for command in self._active_commands:
