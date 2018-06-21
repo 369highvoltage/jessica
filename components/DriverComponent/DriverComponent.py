@@ -31,10 +31,10 @@ class DriverComponent:
     ANGULAR_SAMPLE_RATE = 2
 
     def __init__(self):
-        left_front = Victor(3)
+        left_front = WPI_TalonSRX(6)
         left_rear = WPI_TalonSRX(1)
         right_front = WPI_TalonSRX(4)
-        right_rear = Victor(6)
+        right_rear = WPI_TalonSRX(7)
 
         left = SpeedControllerGroup(left_front, left_rear)
         right = SpeedControllerGroup(right_front, right_rear)
